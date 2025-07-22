@@ -170,7 +170,12 @@
 
 
 
-  - [x] 8.1 Create provider-agnostic style system
+
+
+
+
+  - [-] 8.1 Create provider-agnostic style system
+
 
 
     - Write StyleResolver class for mapping generic styles to provider-specific styles
@@ -179,7 +184,8 @@
     - Update mapdeck_style() function to support provider parameter
     - _Requirements: 2.6, 2.7_
 
-  - [-] 8.2 Add style management features and testing
+  - [x] 8.2 Add style management features and testing
+
 
     - Implement get_available_styles() function for each provider
     - Create custom style creation functionality
