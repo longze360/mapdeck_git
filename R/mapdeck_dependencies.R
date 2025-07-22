@@ -220,3 +220,32 @@ mapdeck_dep_title <- function() {
 	)
 }
 
+## Leaflet.js dependencies
+## https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
+## https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
+leaflet_js <- function() {
+	list(
+		createHtmlDependency(
+			name = "leaflet",
+			version = "1.9.4",
+			src = system.file("htmlwidgets/lib/", package = "mapdeck"),
+			script = c("leaflet.js"),
+			stylesheet = c("leaflet.css"),
+			all_files = FALSE
+		)
+	)
+}
+
+## Leaflet-deck.gl adapter
+leaflet_deckgl_adapter <- function() {
+	list(
+		createHtmlDependency(
+			name = "leaflet-deckgl-adapter",
+			version = "0.0.1",
+			src = system.file("htmlwidgets/lib/", package = "mapdeck"),
+			script = c("leaflet-deckgl-adapter.js"),
+			all_files = FALSE
+		)
+	)
+}
+

@@ -274,3 +274,41 @@ function md_layer_click( map_id, layer, info ) {
 
 
 
+// Leaflet-specific functions
+
+function md_update_leaflet_tiles( map_id, tile_provider ) {
+  if (window.MapdeckLeafletAdapter) {
+    window.MapdeckLeafletAdapter.updateTileProvider(map_id, tile_provider);
+  }
+}
+
+function md_leaflet_set_view( map_id, longitude, latitude, zoom ) {
+  if (window.MapdeckLeafletAdapter) {
+    window.MapdeckLeafletAdapter.setView(map_id, longitude, latitude, zoom);
+  }
+}
+
+function md_leaflet_add_layer( map_id, layer ) {
+  if (window.MapdeckLeafletAdapter) {
+    window.MapdeckLeafletAdapter.addDeckGLLayer(map_id, layer);
+  }
+}
+
+function md_leaflet_remove_layer( map_id, layer_id ) {
+  if (window.MapdeckLeafletAdapter) {
+    window.MapdeckLeafletAdapter.removeDeckGLLayer(map_id, layer_id);
+  }
+}
+
+function md_leaflet_clear_layers( map_id ) {
+  if (window.MapdeckLeafletAdapter) {
+    window.MapdeckLeafletAdapter.clearDeckGLLayers(map_id);
+  }
+}
+
+function md_get_leaflet_map( map_id ) {
+  if (window.MapdeckLeafletAdapter) {
+    return window.MapdeckLeafletAdapter.getMap(map_id);
+  }
+  return null;
+}

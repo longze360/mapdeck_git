@@ -185,6 +185,8 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
         # Register actual provider classes where implemented
         if (name == "mapbox") {
           self$factories[[name]] <- MapboxProvider
+        } else if (name == "leaflet") {
+          self$factories[[name]] <- LeafletProvider
         } else {
           # Placeholder factory - will be replaced when classes are implemented
           self$factories[[name]] <- NULL

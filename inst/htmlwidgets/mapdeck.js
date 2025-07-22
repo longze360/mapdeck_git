@@ -80,7 +80,14 @@ HTMLWidgets.widget({
 					repeat: x.repeat_view
 				})
 
-       if( x.access_token === null ) {
+       // Handle different providers
+       if (x.provider === 'leaflet') {
+         // Initialize Leaflet map with deck.gl overlay
+         const leafletMapData = window.MapdeckLeafletAdapter.initializeLeafletMap(el.id, x);
+         deckgl = leafletMapData.deckOverlay;
+         window[el.id + 'map'] = deckgl;
+         window[el.id + 'leafletMap'] = leafletMapData.leafletMap;
+       } else if( x.access_token === null ) {
        	 deckgl = new deck.DeckGL({
        	 	  views: [mapView],
        	 	  map: false,

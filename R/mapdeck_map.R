@@ -107,11 +107,9 @@ mapdeck <- function(
     repeat_view = repeat_view
   )
   
-  # Use provider system for non-Mapbox providers or when explicitly requested
-  # For now, only Mapbox is implemented, so we'll use the provider system
-  # but fall back to legacy behavior for full compatibility
-  if (provider == "mapbox") {
-    # Try to use provider system, fall back to legacy if provider not available
+  # Use provider system for all providers
+  if (provider %in% c("mapbox", "leaflet")) {
+    # Try to use provider system, fall back to legacy for Mapbox if needed
     tryCatch({
       # Create provider instance
       map_provider <- create_provider(provider, provider_config)
@@ -124,9 +122,18 @@ mapdeck <- function(
       
       return(mapdeckmap)
     }, error = function(e) {
-      # Fall back to legacy implementation for backward compatibility
-      warning("Provider system not fully initialized, using legacy implementation")
+      if (provider == "mapbox") {
+        # Fall back to legacy implementation for Mapbox backward compatibility
+        warning("Provider system not fully initialized, using legacy Mapbox implementation")
+      } else {
+        # For non-Mapbox providers, re-throw the error
+        stop(sprintf("Failed to initialize %s provider: %s", provider, e$message))
+      }
     })
+  } else if (provider %in% c("openlayers", "gaode", "baidu")) {
+    stop(sprintf("Provider '%s' is not yet implemented. Available providers: mapbox, leaflet", provider))
+  } else {
+    stop(sprintf("Unknown provider '%s'. Available providers: mapbox, leaflet", provider))
   }
   
   # Legacy implementation (backward compatibility)

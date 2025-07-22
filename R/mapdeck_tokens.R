@@ -284,3 +284,102 @@ get_access_token <- function(provider = "mapbox", scope = "default") {
   return(NULL)
 }
 
+
+#' Get Access Token
+#'
+#' Retrieves the access token for a specific provider
+#'
+#' @param provider Character string identifying the provider (default: "mapbox")
+#' @param scope Character string for token scope (default: "default")
+#'
+#' @details
+#' This function retrieves tokens from the multi-provider system and falls back
+#' to legacy options for backward compatibility. It also checks environment
+#' variables if no stored token is found.
+#'
+#' @examples
+#' \donttest{
+#' # Get Mapbox token
+#' token <- get_access_token("mapbox")
+#' 
+#' # Get token for other providers
+#' gaode_token <- get_access_token("gaode")
+#' }
+#'
+#' @export
+get_access_token <- function(provider = "mapbox", scope = "default") {
+  # Input validation
+  if (!is.character(provider) || length(provider) != 1) {
+    stop("Provider must be a single character string")
+  }
+  
+  if (!is.character(scope) || length(scope) != 1) {
+    stop("Scope must be a single character string")
+  }
+  
+  # Try to get token from new multi-provider system
+  tryCatch({
+    token_store <- get_token_store()
+    token <- token_store$get_token(provider, scope)
+    if (!is.null(token) && !is.na(token) && nchar(trimws(token)) > 0) {
+      return(token)
+    }
+  }, error = function(e) {
+    # Continue to other methods if token store fails
+  })
+  
+  # Fall back to legacy options system for Mapbox
+  if (provider == "mapbox" && scope == "default") {
+    options <- getOption("mapdeck")
+    if (!is.null(options) && !is.null(options[["mapdeck"]]) && 
+        !is.null(options[["mapdeck"]][["mapbox"]])) {
+      token <- options[["mapdeck"]][["mapbox"]]
+      if (!is.na(token) && nchar(trimws(token)) > 0) {
+        return(token)
+      }
+    }
+  }
+  
+  # Check environment variables
+  env_vars <- get_provider_env_vars(provider)
+  for (var in env_vars) {
+    token <- Sys.getenv(var, unset = NA)
+    if (!is.na(token) && nchar(trimws(token)) > 0) {
+      return(token)
+    }
+  }
+  
+  # Return NULL if no token found
+  return(NULL)
+}
+
+#' Get Provider Environment Variables
+#'
+#' Get list of environment variables to check for each provider
+#'
+#' @param provider Character string identifying the provider
+#' @return Character vector of environment variable names
+#'
+#' @examples
+#' \donttest{
+#' # Get Mapbox environment variables
+#' vars <- get_provider_env_vars("mapbox")
+#' }
+#'
+#' @export
+get_provider_env_vars <- function(provider) {
+  env_vars <- list(
+    "mapbox" = c("MAPBOX_TOKEN", "MAPBOX_KEY", "MAPBOX_API_TOKEN", 
+                 "MAPBOX_API_KEY", "MAPBOX", "MAPDECK"),
+    "leaflet" = c(), # Leaflet doesn't require tokens by default
+    "openlayers" = c(), # OpenLayers doesn't require tokens by default
+    "gaode" = c("GAODE_API_KEY", "GAODE_TOKEN", "AMAP_API_KEY", "AMAP_TOKEN"),
+    "baidu" = c("BAIDU_API_KEY", "BAIDU_TOKEN", "BAIDU_MAP_KEY")
+  )
+  
+  if (provider %in% names(env_vars)) {
+    return(env_vars[[provider]])
+  } else {
+    return(character(0))
+  }
+}
