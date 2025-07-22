@@ -178,12 +178,17 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
       # Get default configurations
       configs <- create_default_provider_configs()
       
-      # Register each provider with a placeholder factory
-      # Actual provider classes will be registered when they are implemented
+      # Register each provider with actual factory classes where available
       for (name in names(configs)) {
         self$providers[[name]] <- configs[[name]]
-        # Placeholder factory - will be replaced when actual classes are available
-        self$factories[[name]] <- NULL
+        
+        # Register actual provider classes where implemented
+        if (name == "mapbox") {
+          self$factories[[name]] <- MapboxProvider
+        } else {
+          # Placeholder factory - will be replaced when classes are implemented
+          self$factories[[name]] <- NULL
+        }
       }
       
       invisible(self)
@@ -269,7 +274,7 @@ ProviderFactory <- R6::R6Class("ProviderFactory",
       # Create provider instance
       tryCatch({
         provider <- provider_class$new()
-        provider$initialize(merged_config)
+        provider$initialize_provider(merged_config)
         return(provider)
       }, error = function(e) {
         stop(sprintf("Failed to create provider '%s': %s", provider_name, e$message))

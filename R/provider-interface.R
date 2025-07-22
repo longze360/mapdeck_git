@@ -46,11 +46,12 @@ IMapProvider <- R6::R6Class("IMapProvider",
     #' Initialize Provider
     #'
     #' Initialize the map provider with configuration settings.
+    #' Note: This is separate from R6's initialize() constructor method.
     #'
     #' @param config List containing provider-specific configuration
     #' @return Invisible self for method chaining
-    initialize = function(config = list()) {
-      stop("initialize() must be implemented by concrete provider classes")
+    initialize_provider = function(config = list()) {
+      stop("initialize_provider() must be implemented by concrete provider classes")
     },
     
     #' Create Map Instance
@@ -177,7 +178,7 @@ validate_provider_interface <- function(provider_class) {
   }
   
   required_methods <- c(
-    "initialize", "create_map", "update_style", "add_layer",
+    "initialize_provider", "create_map", "update_style", "add_layer",
     "remove_layer", "set_view", "get_available_styles",
     "validate_config", "destroy"
   )
