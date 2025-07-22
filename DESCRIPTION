@@ -40,6 +40,7 @@ LinkingTo:
     sfheaders (>= 0.4.4),
     spatialwidget (>= 0.2.6)
 Suggests: 
+    base64enc,
     covr,
     googleway,
     jsonlite,

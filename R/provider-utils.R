@@ -387,7 +387,8 @@ generate_unique_id <- function(prefix = "id") {
     stop("Prefix must be a single character string")
   }
   
-  timestamp <- as.integer(Sys.time() * 1000)
+  # Use a simpler approach to avoid integer overflow
+  timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
   random_part <- sample(1000:9999, 1)
   
   return(paste0(prefix, "_", timestamp, "_", random_part))
