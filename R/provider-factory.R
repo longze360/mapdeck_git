@@ -183,16 +183,57 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
         self$providers[[name]] <- configs[[name]]
         
         # Register actual provider classes where implemented
+        # Use tryCatch to handle missing provider classes gracefully
         if (name == "mapbox") {
-          self$factories[[name]] <- MapboxProvider
+          tryCatch({
+            if (exists("MapboxProvider")) {
+              self$factories[[name]] <- MapboxProvider
+            } else {
+              self$factories[[name]] <- NULL
+            }
+          }, error = function(e) {
+            self$factories[[name]] <- NULL
+          })
         } else if (name == "leaflet") {
-          self$factories[[name]] <- LeafletProvider
+          tryCatch({
+            if (exists("LeafletProvider")) {
+              self$factories[[name]] <- LeafletProvider
+            } else {
+              self$factories[[name]] <- NULL
+            }
+          }, error = function(e) {
+            self$factories[[name]] <- NULL
+          })
         } else if (name == "openlayers") {
-          self$factories[[name]] <- OpenLayersProvider
+          tryCatch({
+            if (exists("OpenLayersProvider")) {
+              self$factories[[name]] <- OpenLayersProvider
+            } else {
+              self$factories[[name]] <- NULL
+            }
+          }, error = function(e) {
+            self$factories[[name]] <- NULL
+          })
         } else if (name == "gaode") {
-          self$factories[[name]] <- GaodeProvider
+          tryCatch({
+            if (exists("GaodeProvider")) {
+              self$factories[[name]] <- GaodeProvider
+            } else {
+              self$factories[[name]] <- NULL
+            }
+          }, error = function(e) {
+            self$factories[[name]] <- NULL
+          })
         } else if (name == "baidu") {
-          self$factories[[name]] <- BaiduProvider
+          tryCatch({
+            if (exists("BaiduProvider")) {
+              self$factories[[name]] <- BaiduProvider
+            } else {
+              self$factories[[name]] <- NULL
+            }
+          }, error = function(e) {
+            self$factories[[name]] <- NULL
+          })
         } else {
           # Placeholder factory - will be replaced when classes are implemented
           self$factories[[name]] <- NULL

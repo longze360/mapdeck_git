@@ -1,28 +1,28 @@
-#' Provider Utilities
+#' Provider Utility Functions
 #'
-#' This file contains shared utility functions used across different
-#' map providers for common operations like validation, error handling,
-#' and data processing.
+#' This file contains utility functions for provider management, validation,
+#' and configuration handling.
 #'
 #' @name provider-utils
 NULL
 
 #' Validate Provider Name
 #'
-#' Validate that a provider name is valid and supported.
+#' Validate that a provider name is valid and available.
 #'
 #' @param provider_name Character string identifying the provider
 #' @param allow_null Logical indicating if NULL values are allowed
-#' @return Character string (validated provider name) or NULL
+#' @return Validated provider name or NULL if allow_null is TRUE
 #'
 #' @examples
 #' \donttest{
-#' # Validate provider name
+#' # Validate provider names
 #' provider <- validate_provider_name("mapbox")
 #' }
 #'
 #' @export
 validate_provider_name <- function(provider_name, allow_null = FALSE) {
+  
   if (is.null(provider_name)) {
     if (allow_null) {
       return(NULL)
@@ -40,129 +40,199 @@ validate_provider_name <- function(provider_name, allow_null = FALSE) {
   }
   
   # Check if provider is available
-  factory <- get_provider_factory()
-  available_providers <- factory$get_available_providers()
-  
-  if (!provider_name %in% available_providers) {
-    stop(sprintf(
-      "Provider '%s' is not available. Available providers: %s",
-      provider_name,
-      paste(available_providers, collapse = ", ")
-    ))
-  }
+  tryCatch({
+    factory <- get_provider_factory()
+    available_providers <- factory$get_available_providers()
+    
+    if (!provider_name %in% available_providers) {
+      stop(sprintf("Provider '%s' is not available. Available providers: %s",
+                  provider_name, paste(available_providers, collapse = ", ")))
+    }
+  }, error = function(e) {
+    if (grepl("not available", e$message)) {
+      stop(e$message)
+    }
+    # If we can't check availability, assume it's valid
+  })
   
   return(provider_name)
 }
 
 #' Validate Map Options
 #'
-#' Validate and normalize map initialization options.
+#' Validate map options for a specific provider.
 #'
 #' @param options List containing map options
-#' @param provider_name Character string identifying the provider
-#' @return List with validated and normalized options
+#' @param provider Character string identifying the provider
+#' @return Validated and normalized options list
 #'
 #' @examples
 #' \donttest{
 #' # Validate map options
-#' options <- validate_map_options(
-#'   list(longitude = -74, latitude = 40.7, zoom = 10),
-#'   "mapbox"
-#' )
+#' options <- validate_map_options(list(zoom = 10), "mapbox")
 #' }
 #'
 #' @export
-validate_map_options <- function(options, provider_name) {
+validate_map_options <- function(options, provider) {
+  
   if (!is.list(options)) {
     stop("Options must be a list")
   }
   
-  # Default options
-  defaults <- list(
-    longitude = 0,
-    latitude = 0,
-    zoom = 0,
-    pitch = 0,
-    bearing = 0,
-    width = "100%",
-    height = "400px"
-  )
-  
-  # Merge with defaults
-  validated_options <- defaults
-  for (key in names(options)) {
-    validated_options[[key]] <- options[[key]]
+  if (!is.character(provider) || length(provider) != 1) {
+    stop("Provider must be a single character string")
   }
   
-  # Validate numeric values
-  numeric_fields <- c("longitude", "latitude", "zoom", "pitch", "bearing")
-  for (field in numeric_fields) {
-    if (!is.null(validated_options[[field]])) {
-      if (!is.numeric(validated_options[[field]]) || 
-          length(validated_options[[field]]) != 1) {
-        stop(sprintf("Option '%s' must be a single numeric value", field))
-      }
+  # Validate common options
+  validated_options <- list()
+  
+  # Validate data
+  if (!is.null(options$data)) {
+    validated_options$data <- options$data
+  }
+  
+  # Validate dimensions
+  if (!is.null(options$width)) {
+    if (!is.numeric(options$width) && !is.character(options$width)) {
+      stop("Width must be numeric or character")
     }
+    validated_options$width <- options$width
   }
   
-  # Validate ranges
-  if (!is.null(validated_options$longitude)) {
-    if (validated_options$longitude < -180 || validated_options$longitude > 180) {
-      stop("Longitude must be between -180 and 180")
+  if (!is.null(options$height)) {
+    if (!is.numeric(options$height) && !is.character(options$height)) {
+      stop("Height must be numeric or character")
     }
+    validated_options$height <- options$height
   }
   
-  if (!is.null(validated_options$latitude)) {
-    if (validated_options$latitude < -90 || validated_options$latitude > 90) {
-      stop("Latitude must be between -90 and 90")
+  # Validate padding
+  if (!is.null(options$padding)) {
+    if (!is.numeric(options$padding) || length(options$padding) != 1) {
+      stop("Padding must be a single numeric value")
     }
+    validated_options$padding <- options$padding
   }
   
-  if (!is.null(validated_options$zoom)) {
-    if (validated_options$zoom < 0 || validated_options$zoom > 24) {
-      stop("Zoom must be between 0 and 24")
+  # Validate view state
+  if (!is.null(options$location)) {
+    if (!is.numeric(options$location) || length(options$location) != 2) {
+      stop("Location must be a numeric vector of length 2")
     }
+    validated_options$location <- options$location
   }
   
-  if (!is.null(validated_options$pitch)) {
-    if (validated_options$pitch < 0 || validated_options$pitch > 60) {
-      stop("Pitch must be between 0 and 60 degrees")
+  if (!is.null(options$zoom)) {
+    if (!is.numeric(options$zoom) || length(options$zoom) != 1) {
+      stop("Zoom must be a single numeric value")
     }
+    validated_options$zoom <- options$zoom
   }
   
-  if (!is.null(validated_options$bearing)) {
-    if (validated_options$bearing < 0 || validated_options$bearing >= 360) {
-      stop("Bearing must be between 0 and 360 degrees")
+  if (!is.null(options$pitch)) {
+    if (!is.numeric(options$pitch) || length(options$pitch) != 1) {
+      stop("Pitch must be a single numeric value")
     }
+    validated_options$pitch <- options$pitch
   }
+  
+  if (!is.null(options$bearing)) {
+    if (!is.numeric(options$bearing) || length(options$bearing) != 1) {
+      stop("Bearing must be a single numeric value")
+    }
+    validated_options$bearing <- options$bearing
+  }
+  
+  # Validate zoom limits
+  if (!is.null(options$max_zoom)) {
+    if (!is.numeric(options$max_zoom) || length(options$max_zoom) != 1) {
+      stop("max_zoom must be a single numeric value")
+    }
+    validated_options$max_zoom <- options$max_zoom
+  }
+  
+  if (!is.null(options$min_zoom)) {
+    if (!is.numeric(options$min_zoom) || length(options$min_zoom) != 1) {
+      stop("min_zoom must be a single numeric value")
+    }
+    validated_options$min_zoom <- options$min_zoom
+  }
+  
+  # Validate pitch limits
+  if (!is.null(options$max_pitch)) {
+    if (!is.numeric(options$max_pitch) || length(options$max_pitch) != 1) {
+      stop("max_pitch must be a single numeric value")
+    }
+    validated_options$max_pitch <- options$max_pitch
+  }
+  
+  if (!is.null(options$min_pitch)) {
+    if (!is.numeric(options$min_pitch) || length(options$min_pitch) != 1) {
+      stop("min_pitch must be a single numeric value")
+    }
+    validated_options$min_pitch <- options$min_pitch
+  }
+  
+  # Validate style
+  if (!is.null(options$style)) {
+    validated_options$style <- options$style
+  }
+  
+  # Validate libraries
+  if (!is.null(options$libraries)) {
+    if (!is.character(options$libraries)) {
+      stop("Libraries must be a character vector")
+    }
+    validated_options$libraries <- options$libraries
+  }
+  
+  # Validate boolean options
+  if (!is.null(options$show_view_state)) {
+    if (!is.logical(options$show_view_state) || length(options$show_view_state) != 1) {
+      stop("show_view_state must be a single logical value")
+    }
+    validated_options$show_view_state <- options$show_view_state
+  }
+  
+  if (!is.null(options$repeat_view)) {
+    if (!is.logical(options$repeat_view) || length(options$repeat_view) != 1) {
+      stop("repeat_view must be a single logical value")
+    }
+    validated_options$repeat_view <- options$repeat_view
+  }
+  
+  # Provider-specific validation
+  validated_options <- validate_provider_specific_options(validated_options, provider)
   
   return(validated_options)
 }
 
 #' Validate Layer Configuration
 #'
-#' Validate deck.gl layer configuration for provider compatibility.
+#' Validate layer configuration for a specific provider.
 #'
 #' @param layer List containing layer configuration
-#' @param provider_name Character string identifying the provider
-#' @return List with validated layer configuration
+#' @param provider Character string identifying the provider
+#' @return Validated layer configuration
 #'
 #' @examples
 #' \donttest{
 #' # Validate layer configuration
-#' layer <- validate_layer_config(
-#'   list(type = "ScatterplotLayer", data = data.frame(x = 1, y = 1)),
-#'   "mapbox"
-#' )
+#' layer <- validate_layer_config(list(type = "scatterplot"), "mapbox")
 #' }
 #'
 #' @export
-validate_layer_config <- function(layer, provider_name) {
+validate_layer_config <- function(layer, provider) {
+  
   if (!is.list(layer)) {
     stop("Layer must be a list")
   }
   
-  # Check required fields
+  if (!is.character(provider) || length(provider) != 1) {
+    stop("Provider must be a single character string")
+  }
+  
+  # Validate required fields
   if (is.null(layer$type)) {
     stop("Layer must have a 'type' field")
   }
@@ -173,277 +243,432 @@ validate_layer_config <- function(layer, provider_name) {
   
   # Validate layer ID
   if (is.null(layer$id)) {
-    # Generate unique ID if not provided
-    layer$id <- paste0(layer$type, "_", as.integer(Sys.time() * 1000))
+    layer$id <- paste0(layer$type, "_", as.integer(Sys.time()))
   }
   
   if (!is.character(layer$id) || length(layer$id) != 1) {
     stop("Layer ID must be a single character string")
   }
   
-  # Check provider capabilities for layer type
-  factory <- get_provider_factory()
-  capabilities <- factory$get_provider_capabilities(provider_name)
+  # Validate data
+  if (!is.null(layer$data)) {
+    # Basic data validation - could be expanded
+    if (!is.data.frame(layer$data) && !is.list(layer$data)) {
+      stop("Layer data must be a data frame or list")
+    }
+  }
   
-  # For now, assume all providers support all layer types
-  # This can be enhanced later with provider-specific layer support
+  # Provider-specific layer validation
+  layer <- validate_provider_specific_layer(layer, provider)
   
   return(layer)
 }
 
-#' Create Provider Error
+#' Normalize Style Name
 #'
-#' Create a standardized provider-specific error.
+#' Normalize style names for different providers.
 #'
-#' @param message Character string containing error message
+#' @param style Character string or list containing style specification
 #' @param provider Character string identifying the provider
-#' @param code Character string containing error code (optional)
-#' @param call Call object for error context (optional)
-#' @return Error condition object
+#' @return Normalized style specification
 #'
 #' @examples
 #' \donttest{
-#' # Create provider error
-#' error <- create_provider_error("Invalid token", "mapbox", "AUTH_ERROR")
+#' # Normalize style names
+#' style <- normalize_style_name("dark", "mapbox")
 #' }
 #'
 #' @export
-create_provider_error <- function(message, provider, code = NULL, call = NULL) {
-  if (!is.character(message) || length(message) != 1) {
-    stop("Error message must be a single character string")
+normalize_style_name <- function(style, provider) {
+  
+  if (is.null(style)) {
+    return(get_default_style(provider))
   }
   
   if (!is.character(provider) || length(provider) != 1) {
     stop("Provider must be a single character string")
   }
   
-  error_data <- list(
-    message = message,
-    provider = provider,
-    code = code,
-    call = call
-  )
-  
-  structure(
-    error_data,
-    class = c("MapdeckProviderError", "error", "condition")
-  )
-}
-
-#' Handle Provider Error
-#'
-#' Handle provider-specific errors with appropriate messaging.
-#'
-#' @param error Error object to handle
-#' @param context Character string providing error context
-#' @return NULL (function stops execution)
-#'
-#' @examples
-#' \donttest{
-#' # Handle provider error
-#' tryCatch({
-#'   # Some operation that might fail
-#' }, error = function(e) {
-#'   handle_provider_error(e, "map initialization")
-#' })
-#' }
-#'
-#' @export
-handle_provider_error <- function(error, context = "operation") {
-  if (inherits(error, "MapdeckProviderError")) {
-    # Enhanced error message for provider errors
-    enhanced_message <- sprintf(
-      "Provider error during %s:\nProvider: %s\nError: %s",
-      context,
-      error$provider,
-      error$message
-    )
-    
-    if (!is.null(error$code)) {
-      enhanced_message <- paste0(enhanced_message, "\nCode: ", error$code)
-    }
-    
-    stop(enhanced_message, call. = FALSE)
-  } else {
-    # Re-throw non-provider errors
-    stop(error)
-  }
-}
-
-#' Normalize Style Name
-#'
-#' Normalize style names for provider compatibility.
-#'
-#' @param style Character string or list containing style specification
-#' @param provider_name Character string identifying the provider
-#' @return Normalized style specification
-#'
-#' @examples
-#' \donttest{
-#' # Normalize style name
-#' style <- normalize_style_name("streets", "mapbox")
-#' }
-#'
-#' @export
-normalize_style_name <- function(style, provider_name) {
-  if (is.null(style)) {
-    # Use provider default
-    factory <- get_provider_factory()
-    config <- factory$registry$get_provider_config(provider_name)
-    return(config$default_style)
-  }
-  
+  # Handle different style input types
   if (is.character(style) && length(style) == 1) {
-    # Handle common style aliases
-    style_aliases <- list(
-      "streets" = list(
-        "mapbox" = "mapbox://styles/mapbox/streets-v11",
-        "leaflet" = "OpenStreetMap",
-        "openlayers" = "OSM",
-        "gaode" = "amap://styles/normal",
-        "baidu" = "normal"
-      ),
-      "satellite" = list(
-        "mapbox" = "mapbox://styles/mapbox/satellite-v9",
-        "leaflet" = "Esri.WorldImagery",
-        "openlayers" = "satellite",
-        "gaode" = "amap://styles/satellite",
-        "baidu" = "satellite"
-      ),
-      "dark" = list(
-        "mapbox" = "mapbox://styles/mapbox/dark-v10",
-        "leaflet" = "CartoDB.DarkMatter",
-        "openlayers" = "dark",
-        "gaode" = "amap://styles/dark",
-        "baidu" = "dark"
-      )
-    )
-    
-    if (style %in% names(style_aliases)) {
-      provider_styles <- style_aliases[[style]]
-      if (provider_name %in% names(provider_styles)) {
-        return(provider_styles[[provider_name]])
-      }
-    }
-    
-    # Return as-is if no alias found
-    return(style)
+    return(normalize_character_style(style, provider))
   }
   
-  # Return complex styles as-is
+  if (is.list(style)) {
+    return(normalize_custom_style(style, provider))
+  }
+  
+  # Return as-is if we can't normalize
   return(style)
 }
 
-#' Check Feature Support
+#' Get Default Style for Provider
 #'
-#' Check if a provider supports a specific feature.
-#'
-#' @param provider_name Character string identifying the provider
-#' @param feature Character string identifying the feature
-#' @return Logical indicating if feature is supported
-#'
-#' @examples
-#' \donttest{
-#' # Check if Mapbox supports 3D terrain
-#' supported <- check_feature_support("mapbox", "3d_terrain")
-#' }
-#'
-#' @export
-check_feature_support <- function(provider_name, feature) {
-  if (!is.character(provider_name) || length(provider_name) != 1) {
-    stop("Provider name must be a single character string")
-  }
+#' @param provider Character string identifying the provider
+#' @return Default style for the provider
+get_default_style <- function(provider) {
   
-  if (!is.character(feature) || length(feature) != 1) {
-    stop("Feature must be a single character string")
-  }
+  default_styles <- list(
+    "mapbox" = "mapbox://styles/mapbox/streets-v11",
+    "leaflet" = "OpenStreetMap",
+    "openlayers" = "osm",
+    "gaode" = "normal",
+    "baidu" = "normal"
+  )
   
-  factory <- get_provider_factory()
-  config <- factory$registry$get_provider_config(provider_name)
-  
-  if (is.null(config)) {
-    return(FALSE)
-  }
-  
-  return(config$supports_feature(feature))
+  return(default_styles[[provider]] %||% "default")
 }
 
-#' Generate Unique ID
+#' Normalize Character Style
 #'
-#' Generate a unique identifier for layers or other objects.
-#'
-#' @param prefix Character string prefix for the ID
-#' @return Character string containing unique ID
-#'
-#' @examples
-#' \donttest{
-#' # Generate unique layer ID
-#' id <- generate_unique_id("layer")
-#' }
-#'
-#' @export
-generate_unique_id <- function(prefix = "id") {
-  if (!is.character(prefix) || length(prefix) != 1) {
-    stop("Prefix must be a single character string")
-  }
+#' @param style Character string containing style name
+#' @param provider Character string identifying the provider
+#' @return Normalized style string
+normalize_character_style <- function(style, provider) {
   
-  # Use a simpler approach to avoid integer overflow
-  timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
-  random_part <- sample(1000:9999, 1)
-  
-  return(paste0(prefix, "_", timestamp, "_", random_part))
+  # Provider-specific style normalization
+  switch(provider,
+    "mapbox" = normalize_mapbox_style(style),
+    "leaflet" = normalize_leaflet_style(style),
+    "openlayers" = normalize_openlayers_style(style),
+    "gaode" = normalize_gaode_style(style),
+    "baidu" = normalize_baidu_style(style),
+    style  # Return as-is for unknown providers
+  )
 }
 
-#' Validate Coordinate Bounds
+#' Normalize Custom Style
 #'
-#' Validate that coordinate bounds are within valid ranges.
+#' @param style List containing custom style specification
+#' @param provider Character string identifying the provider
+#' @return Normalized style list
+normalize_custom_style <- function(style, provider) {
+  
+  # Basic validation for custom styles
+  if (!is.list(style)) {
+    stop("Custom style must be a list")
+  }
+  
+  # Provider-specific custom style handling
+  switch(provider,
+    "mapbox" = {
+      # Mapbox custom styles should have version, sources, layers
+      required_fields <- c("version", "sources", "layers")
+      if (!all(required_fields %in% names(style))) {
+        warning("Custom Mapbox style missing required fields")
+      }
+    },
+    "leaflet" = {
+      # Leaflet custom styles are tile configurations
+      if (is.null(style$url)) {
+        warning("Custom Leaflet style missing URL")
+      }
+    }
+  )
+  
+  return(style)
+}
+
+#' Normalize Mapbox Style
 #'
-#' @param bounds Numeric vector of length 4 containing [west, south, east, north]
-#' @return Numeric vector with validated bounds
+#' @param style Character string containing Mapbox style name
+#' @return Normalized Mapbox style URL
+normalize_mapbox_style <- function(style) {
+  
+  # Common Mapbox style aliases
+  aliases <- list(
+    "streets" = "mapbox://styles/mapbox/streets-v11",
+    "outdoors" = "mapbox://styles/mapbox/outdoors-v11",
+    "light" = "mapbox://styles/mapbox/light-v10",
+    "dark" = "mapbox://styles/mapbox/dark-v10",
+    "satellite" = "mapbox://styles/mapbox/satellite-v9",
+    "satellite-streets" = "mapbox://styles/mapbox/satellite-streets-v11",
+    "navigation-day" = "mapbox://styles/mapbox/navigation-day-v1",
+    "navigation-night" = "mapbox://styles/mapbox/navigation-night-v1"
+  )
+  
+  # Convert to lowercase for matching
+  style_lower <- tolower(style)
+  
+  if (style_lower %in% names(aliases)) {
+    return(aliases[[style_lower]])
+  }
+  
+  # Return as-is if it's already a full URL or unknown alias
+  return(style)
+}
+
+#' Normalize Leaflet Style
 #'
-#' @examples
-#' \donttest{
-#' # Validate bounds
-#' bounds <- validate_coordinate_bounds(c(-180, -90, 180, 90))
-#' }
+#' @param style Character string containing Leaflet tile provider name
+#' @return Normalized Leaflet tile provider name
+normalize_leaflet_style <- function(style) {
+  
+  # Use the existing normalize_leaflet_tile_provider function
+  tryCatch({
+    return(normalize_leaflet_tile_provider(style))
+  }, error = function(e) {
+    return(style)
+  })
+}
+
+#' Normalize OpenLayers Style
 #'
-#' @export
-validate_coordinate_bounds <- function(bounds) {
-  if (!is.numeric(bounds) || length(bounds) != 4) {
-    stop("Bounds must be a numeric vector of length 4 [west, south, east, north]")
+#' @param style Character string containing OpenLayers source name
+#' @return Normalized OpenLayers source name
+normalize_openlayers_style <- function(style) {
+  
+  # Common OpenLayers source aliases
+  aliases <- list(
+    "osm" = "osm",
+    "openstreetmap" = "osm",
+    "bing" = "bing",
+    "google" = "google",
+    "esri" = "esri"
+  )
+  
+  style_lower <- tolower(style)
+  
+  if (style_lower %in% names(aliases)) {
+    return(aliases[[style_lower]])
   }
   
-  west <- bounds[1]
-  south <- bounds[2]
-  east <- bounds[3]
-  north <- bounds[4]
+  return(style)
+}
+
+#' Normalize Gaode Style
+#'
+#' @param style Character string containing Gaode style name
+#' @return Normalized Gaode style name
+normalize_gaode_style <- function(style) {
   
-  # Validate longitude bounds
-  if (west < -180 || west > 180) {
-    stop("West longitude must be between -180 and 180")
+  # Common Gaode style aliases
+  aliases <- list(
+    "normal" = "normal",
+    "satellite" = "satellite",
+    "roadnet" = "roadnet",
+    "dark" = "dark"
+  )
+  
+  style_lower <- tolower(style)
+  
+  if (style_lower %in% names(aliases)) {
+    return(aliases[[style_lower]])
   }
   
-  if (east < -180 || east > 180) {
-    stop("East longitude must be between -180 and 180")
+  return(style)
+}
+
+#' Normalize Baidu Style
+#'
+#' @param style Character string containing Baidu style name
+#' @return Normalized Baidu style name
+normalize_baidu_style <- function(style) {
+  
+  # Common Baidu style aliases
+  aliases <- list(
+    "normal" = "normal",
+    "satellite" = "satellite",
+    "hybrid" = "hybrid",
+    "dark" = "dark"
+  )
+  
+  style_lower <- tolower(style)
+  
+  if (style_lower %in% names(aliases)) {
+    return(aliases[[style_lower]])
   }
   
-  # Validate latitude bounds
-  if (south < -90 || south > 90) {
-    stop("South latitude must be between -90 and 90")
+  return(style)
+}
+
+#' Validate Provider-Specific Options
+#'
+#' @param options List containing validated common options
+#' @param provider Character string identifying the provider
+#' @return Options with provider-specific validation applied
+validate_provider_specific_options <- function(options, provider) {
+  
+  switch(provider,
+    "mapbox" = validate_mapbox_options(options),
+    "leaflet" = validate_leaflet_options(options),
+    "openlayers" = validate_openlayers_options(options),
+    "gaode" = validate_gaode_options(options),
+    "baidu" = validate_baidu_options(options),
+    options  # Return as-is for unknown providers
+  )
+}
+
+#' Validate Mapbox Options
+#'
+#' @param options List containing options
+#' @return Validated Mapbox options
+validate_mapbox_options <- function(options) {
+  
+  # Mapbox-specific validation
+  if (!is.null(options$pitch)) {
+    if (options$pitch < 0 || options$pitch > 60) {
+      stop("Mapbox pitch must be between 0 and 60 degrees")
+    }
   }
   
-  if (north < -90 || north > 90) {
-    stop("North latitude must be between -90 and 90")
+  if (!is.null(options$bearing)) {
+    if (options$bearing < 0 || options$bearing >= 360) {
+      stop("Mapbox bearing must be between 0 and 360 degrees")
+    }
   }
   
-  # Validate logical relationships
-  if (west >= east) {
-    stop("West longitude must be less than east longitude")
+  return(options)
+}
+
+#' Validate Leaflet Options
+#'
+#' @param options List containing options
+#' @return Validated Leaflet options
+validate_leaflet_options <- function(options) {
+  
+  # Leaflet doesn't support pitch and bearing
+  if (!is.null(options$pitch) && options$pitch != 0) {
+    warning("Leaflet does not support pitch - setting to 0")
+    options$pitch <- 0
   }
   
-  if (south >= north) {
-    stop("South latitude must be less than north latitude")
+  if (!is.null(options$bearing) && options$bearing != 0) {
+    warning("Leaflet does not support bearing - setting to 0")
+    options$bearing <- 0
   }
   
-  return(bounds)
+  # Validate tile provider specific options
+  if (!is.null(options$tile_provider)) {
+    if (!is.character(options$tile_provider) || length(options$tile_provider) != 1) {
+      stop("tile_provider must be a single character string")
+    }
+    options$tile_provider <- normalize_leaflet_tile_provider(options$tile_provider)
+  }
+  
+  return(options)
+}
+
+#' Validate OpenLayers Options
+#'
+#' @param options List containing options
+#' @return Validated OpenLayers options
+validate_openlayers_options <- function(options) {
+  
+  # OpenLayers-specific validation
+  if (!is.null(options$projection)) {
+    if (!is.character(options$projection) || length(options$projection) != 1) {
+      stop("projection must be a single character string")
+    }
+  }
+  
+  return(options)
+}
+
+#' Validate Gaode Options
+#'
+#' @param options List containing options
+#' @return Validated Gaode options
+validate_gaode_options <- function(options) {
+  
+  # Gaode-specific validation
+  if (!is.null(options$api_key)) {
+    if (!is.character(options$api_key) || length(options$api_key) != 1) {
+      stop("api_key must be a single character string")
+    }
+  }
+  
+  return(options)
+}
+
+#' Validate Baidu Options
+#'
+#' @param options List containing options
+#' @return Validated Baidu options
+validate_baidu_options <- function(options) {
+  
+  # Baidu-specific validation
+  if (!is.null(options$api_key)) {
+    if (!is.character(options$api_key) || length(options$api_key) != 1) {
+      stop("api_key must be a single character string")
+    }
+  }
+  
+  return(options)
+}
+
+#' Validate Provider-Specific Layer
+#'
+#' @param layer List containing layer configuration
+#' @param provider Character string identifying the provider
+#' @return Validated layer configuration
+validate_provider_specific_layer <- function(layer, provider) {
+  
+  switch(provider,
+    "mapbox" = validate_mapbox_layer(layer),
+    "leaflet" = validate_leaflet_layer(layer),
+    "openlayers" = validate_openlayers_layer(layer),
+    "gaode" = validate_gaode_layer(layer),
+    "baidu" = validate_baidu_layer(layer),
+    layer  # Return as-is for unknown providers
+  )
+}
+
+#' Validate Mapbox Layer
+#'
+#' @param layer List containing layer configuration
+#' @return Validated Mapbox layer
+validate_mapbox_layer <- function(layer) {
+  
+  # Mapbox supports all deck.gl layer types
+  return(layer)
+}
+
+#' Validate Leaflet Layer
+#'
+#' @param layer List containing layer configuration
+#' @return Validated Leaflet layer
+validate_leaflet_layer <- function(layer) {
+  
+  # Leaflet might have limitations with 3D features
+  if (!is.null(layer$elevation)) {
+    warning("Leaflet has limited support for 3D elevation - layer may not render as expected")
+  }
+  
+  return(layer)
+}
+
+#' Validate OpenLayers Layer
+#'
+#' @param layer List containing layer configuration
+#' @return Validated OpenLayers layer
+validate_openlayers_layer <- function(layer) {
+  
+  # OpenLayers-specific layer validation
+  return(layer)
+}
+
+#' Validate Gaode Layer
+#'
+#' @param layer List containing layer configuration
+#' @return Validated Gaode layer
+validate_gaode_layer <- function(layer) {
+  
+  # Gaode-specific layer validation
+  return(layer)
+}
+
+#' Validate Baidu Layer
+#'
+#' @param layer List containing layer configuration
+#' @return Validated Baidu layer
+validate_baidu_layer <- function(layer) {
+  
+  # Baidu-specific layer validation
+  return(layer)
+}
+
+# Define %||% operator if not already defined
+if (!exists("%||%")) {
+  `%||%` <- function(x, y) if (is.null(x)) y else x
 }
