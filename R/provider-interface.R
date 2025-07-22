@@ -1,176 +1,169 @@
 #' Provider Interface Definition
 #'
-#' Defines the common interface that all map providers must implement.
-#' This ensures consistent behavior across different mapping backends.
+#' This file defines the abstract interface that all map providers must implement.
+#' It ensures consistent behavior across different mapping backends while allowing
+#' provider-specific optimizations.
 #'
-#' @name IMapProvider
-#' @keywords internal
+#' @name provider-interface
 NULL
 
-#' Map Provider Interface
+#' Abstract Map Provider Interface
 #'
 #' R6 class defining the interface that all map providers must implement.
-#' This abstract base class ensures consistent behavior across different
-#' mapping backends while allowing provider-specific optimizations.
+#' This ensures consistent behavior across different mapping backends.
 #'
-#' @section Methods:
-#' \describe{
-#'   \item{\code{initialize(config)}}{Initialize the provider with configuration}
-#'   \item{\code{create_map(container, options)}}{Create a map instance}
-#'   \item{\code{update_style(style)}}{Update the map style}
-#'   \item{\code{add_layer(layer)}}{Add a deck.gl layer to the map}
-#'   \item{\code{remove_layer(layer_id)}}{Remove a layer from the map}
-#'   \item{\code{set_view(location, zoom, pitch, bearing)}}{Set the map view}
-#'   \item{\code{get_capabilities()}}{Get provider capabilities}
-#'   \item{\code{validate_config(config)}}{Validate provider configuration}
-#'   \item{\code{destroy()}}{Clean up provider resources}
-#' }
+#' @field provider_name Character string identifying the provider
+#' @field provider_type Character string indicating provider type
+#' @field config List containing provider-specific configuration
+#' @field capabilities List of supported features and capabilities
 #'
-#' @importFrom R6 R6Class
-#' @keywords internal
-IMapProvider <- R6::R6Class(
-  "IMapProvider",
+#' @export
+IMapProvider <- R6::R6Class("IMapProvider",
   public = list(
-    #' @field provider_name Character string identifying the provider
     provider_name = NULL,
-    
-    #' @field config Provider-specific configuration
+    provider_type = NULL,
     config = NULL,
-    
-    #' @field capabilities List of provider capabilities
     capabilities = NULL,
     
     #' Initialize Provider
     #'
-    #' Initialize the map provider with the given configuration.
+    #' Initialize the map provider with configuration settings.
     #'
-    #' @param config List containing provider-specific configuration options
+    #' @param config List containing provider-specific configuration
+    #'
     #' @return Invisible self for method chaining
     initialize = function(config = list()) {
       stop("initialize() must be implemented by provider subclass")
     },
     
-    #' Create Map
+    #' Create Map Instance
     #'
-    #' Create a map instance with the specified container and options.
+    #' Create a new map instance with the specified container and options.
     #'
-    #' @param container HTML container element for the map
+    #' @param container Character string identifying the HTML container
     #' @param options List of map initialization options
-    #' @return Map object specific to the provider
-    create_map = function(container, options) {
+    #'
+    #' @return Map instance object
+    create_map = function(container, options = list()) {
       stop("create_map() must be implemented by provider subclass")
     },
     
-    #' Update Style
+    #' Update Map Style
     #'
     #' Update the map style to the specified style.
     #'
-    #' @param style Character string or list specifying the new style
+    #' @param style Character string or list specifying the map style
+    #'
     #' @return Invisible self for method chaining
     update_style = function(style) {
       stop("update_style() must be implemented by provider subclass")
     },
     
-    #' Add Layer
+    #' Add Layer to Map
     #'
     #' Add a deck.gl layer to the map.
     #'
-    #' @param layer List containing layer configuration and data
+    #' @param layer List containing layer configuration
+    #'
     #' @return Invisible self for method chaining
     add_layer = function(layer) {
       stop("add_layer() must be implemented by provider subclass")
     },
     
-    #' Remove Layer
+    #' Remove Layer from Map
     #'
-    #' Remove a layer from the map by its identifier.
+    #' Remove a layer from the map by its ID.
     #'
     #' @param layer_id Character string identifying the layer to remove
+    #'
     #' @return Invisible self for method chaining
     remove_layer = function(layer_id) {
       stop("remove_layer() must be implemented by provider subclass")
     },
     
-    #' Set View
+    #' Set Map View
     #'
     #' Set the map view to the specified location and parameters.
     #'
-    #' @param location Numeric vector of longitude and latitude
+    #' @param longitude Numeric longitude coordinate
+    #' @param latitude Numeric latitude coordinate
     #' @param zoom Numeric zoom level
-    #' @param pitch Numeric pitch angle in degrees
-    #' @param bearing Numeric bearing angle in degrees
+    #' @param pitch Numeric pitch angle (optional)
+    #' @param bearing Numeric bearing angle (optional)
+    #'
     #' @return Invisible self for method chaining
-    set_view = function(location = NULL, zoom = NULL, pitch = NULL, bearing = NULL) {
+    set_view = function(longitude, latitude, zoom, pitch = 0, bearing = 0) {
       stop("set_view() must be implemented by provider subclass")
     },
     
-    #' Get Capabilities
+    #' Get Available Styles
     #'
-    #' Get the capabilities supported by this provider.
+    #' Get list of available styles for this provider.
     #'
-    #' @return List of provider capabilities
-    get_capabilities = function() {
-      return(self$capabilities)
+    #' @return Character vector of available style names
+    get_available_styles = function() {
+      stop("get_available_styles() must be implemented by provider subclass")
     },
     
     #' Validate Configuration
     #'
-    #' Validate the provider configuration and return any errors.
+    #' Validate provider-specific configuration settings.
     #'
     #' @param config List containing configuration to validate
-    #' @return List with 'valid' (logical) and 'errors' (character vector)
+    #'
+    #' @return Logical indicating if configuration is valid
     validate_config = function(config) {
       stop("validate_config() must be implemented by provider subclass")
     },
     
-    #' Destroy Provider
+    #' Get Provider Capabilities
     #'
-    #' Clean up provider resources and destroy the map instance.
+    #' Get list of capabilities supported by this provider.
     #'
-    #' @return Invisible NULL
+    #' @return List of supported capabilities
+    get_capabilities = function() {
+      return(self$capabilities)
+    },
+    
+    #' Destroy Map Instance
+    #'
+    #' Clean up and destroy the map instance.
+    #'
+    #' @return Invisible self
     destroy = function() {
       stop("destroy() must be implemented by provider subclass")
     }
   )
 )
 
-#' Provider Capabilities
+#' Validate Provider Interface Implementation
 #'
-#' Standard capabilities that providers can support.
+#' Validates that a provider class properly implements the IMapProvider interface.
 #'
-#' @export
-PROVIDER_CAPABILITIES <- list(
-  AUTHENTICATION_REQUIRED = "authentication_required",
-  CUSTOM_STYLES = "custom_styles",
-  COORDINATE_TRANSFORM = "coordinate_transform",
-  TILE_LAYERS = "tile_layers",
-  VECTOR_LAYERS = "vector_layers",
-  RASTER_LAYERS = "raster_layers",
-  TERRAIN_LAYERS = "terrain_layers",
-  SATELLITE_IMAGERY = "satellite_imagery",
-  TRAFFIC_LAYERS = "traffic_layers",
-  TRANSIT_LAYERS = "transit_layers",
-  INDOOR_MAPPING = "indoor_mapping",
-  OFFLINE_SUPPORT = "offline_support",
-  CLUSTERING = "clustering",
-  HEATMAPS = "heatmaps",
-  ANIMATIONS = "animations",
-  THREE_D_BUILDINGS = "3d_buildings",
-  CUSTOM_MARKERS = "custom_markers",
-  POPUP_SUPPORT = "popup_support",
-  DRAWING_TOOLS = "drawing_tools",
-  MEASUREMENT_TOOLS = "measurement_tools"
-)
-
-#' Provider Types
+#' @param provider_class R6 class to validate
 #'
-#' Standard provider type identifiers.
+#' @return Logical indicating if the provider implements the interface correctly
 #'
 #' @export
-PROVIDER_TYPES <- list(
-  MAPBOX = "mapbox",
-  LEAFLET = "leaflet",
-  OPENLAYERS = "openlayers",
-  GAODE = "gaode",
-  BAIDU = "baidu"
-)
+validate_provider_interface <- function(provider_class) {
+  if (!R6::is.R6Class(provider_class)) {
+    return(FALSE)
+  }
+  
+  required_methods <- c(
+    "initialize", "create_map", "update_style", "add_layer", 
+    "remove_layer", "set_view", "get_available_styles", 
+    "validate_config", "get_capabilities", "destroy"
+  )
+  
+  class_methods <- names(provider_class$public_methods)
+  missing_methods <- setdiff(required_methods, class_methods)
+  
+  if (length(missing_methods) > 0) {
+    warning(paste("Provider missing required methods:", 
+                  paste(missing_methods, collapse = ", ")))
+    return(FALSE)
+  }
+  
+  return(TRUE)
+}

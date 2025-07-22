@@ -1,336 +1,279 @@
 #' Provider Configuration Management
 #'
-#' Configuration management system for map providers, handling
-#' provider-specific settings, validation, and defaults.
+#' This file contains classes and functions for managing provider-specific
+#' configuration settings, including authentication, capabilities, and
+#' default options.
 #'
-#' @importFrom R6 R6Class
-#' @keywords internal
+#' @name provider-config
 NULL
 
-#' Provider Configuration
+#' Provider Configuration Class
 #'
-#' R6 class for managing provider-specific configuration options.
+#' R6 class for managing provider-specific configuration settings.
 #'
-#' @section Methods:
-#' \describe{
-#'   \item{\code{initialize(name, type, defaults)}}{Initialize configuration}
-#'   \item{\code{set_option(key, value)}}{Set a configuration option}
-#'   \item{\code{get_option(key, default)}}{Get a configuration option}
-#'   \item{\code{validate()}}{Validate the current configuration}
-#'   \item{\code{merge_config(config)}}{Merge with another configuration}
-#'   \item{\code{to_list()}}{Convert configuration to list}
-#' }
+#' @field name Character string identifying the provider
+#' @field type Character string indicating provider type
+#' @field authentication_required Logical indicating if authentication is required
+#' @field supported_features List of supported features
+#' @field coordinate_system Character string indicating coordinate system
+#' @field default_style Character string for default style
+#' @field api_endpoints List of API endpoints for the provider
+#' @field rate_limits List of rate limiting information
 #'
-#' @keywords internal
-ProviderConfig <- R6::R6Class(
-  "ProviderConfig",
-  private = list(
-    .name = NULL,
-    .type = NULL,
-    .options = list(),
-    .defaults = list(),
-    .required_options = character(0),
-    .validation_rules = list()
-  ),
-  
+#' @export
+ProviderConfig <- R6::R6Class("ProviderConfig",
   public = list(
-    #' Initialize Configuration
-    #'
-    #' Initialize a provider configuration with name, type, and defaults.
+    name = NULL,
+    type = NULL,
+    authentication_required = NULL,
+    supported_features = NULL,
+    coordinate_system = NULL,
+    default_style = NULL,
+    api_endpoints = NULL,
+    rate_limits = NULL,
+    
+    #' Initialize Provider Configuration
     #'
     #' @param name Character string identifying the provider
-    #' @param type Character string specifying the provider type
-    #' @param defaults List of default configuration options
-    #' @param required_options Character vector of required option names
-    #' @param validation_rules List of validation functions for options
-    initialize = function(name, type, defaults = list(), 
-                         required_options = character(0),
-                         validation_rules = list()) {
-      private$.name <- name
-      private$.type <- type
-      private$.defaults <- defaults
-      private$.required_options <- required_options
-      private$.validation_rules <- validation_rules
+    #' @param type Character string indicating provider type
+    #' @param auth_required Logical indicating if authentication is required
+    #' @param features List of supported features
+    #' @param coord_sys Character string indicating coordinate system
+    #' @param style Character string for default style
+    #' @param endpoints List of API endpoints (optional)
+    #' @param limits List of rate limiting information (optional)
+    #'
+    #' @return New ProviderConfig instance
+    initialize = function(name, type, auth_required, features, coord_sys, 
+                         style, endpoints = list(), limits = list()) {
+      self$name <- name
+      self$type <- type
+      self$authentication_required <- auth_required
+      self$supported_features <- features
+      self$coordinate_system <- coord_sys
+      self$default_style <- style
+      self$api_endpoints <- endpoints
+      self$rate_limits <- limits
       
-      # Initialize with defaults
-      private$.options <- defaults
-    },
-    
-    #' Set Option
-    #'
-    #' Set a configuration option value.
-    #'
-    #' @param key Character string identifying the option
-    #' @param value Value to set for the option
-    #' @return Invisible self for method chaining
-    set_option = function(key, value) {
-      # Validate option if validation rule exists
-      if (key %in% names(private$.validation_rules)) {
-        validation_fn <- private$.validation_rules[[key]]
-        if (!validation_fn(value)) {
-          stop(sprintf("Invalid value for option '%s'", key))
-        }
-      }
-      
-      private$.options[[key]] <- value
-      invisible(self)
-    },
-    
-    #' Get Option
-    #'
-    #' Get a configuration option value.
-    #'
-    #' @param key Character string identifying the option
-    #' @param default Default value if option is not set
-    #' @return Option value or default
-    get_option = function(key, default = NULL) {
-      if (key %in% names(private$.options)) {
-        return(private$.options[[key]])
-      }
-      return(default)
+      # Validate configuration
+      self$validate()
     },
     
     #' Validate Configuration
     #'
-    #' Validate the current configuration against requirements and rules.
+    #' Validates the provider configuration for completeness and correctness.
     #'
-    #' @return List with 'valid' (logical) and 'errors' (character vector)
+    #' @return Logical indicating if configuration is valid
     validate = function() {
-      errors <- character(0)
-      
-      # Check required options
-      missing_required <- setdiff(private$.required_options, names(private$.options))
-      if (length(missing_required) > 0) {
-        errors <- c(errors, sprintf(
-          "Missing required options: %s",
-          paste(missing_required, collapse = ", ")
-        ))
+      if (is.null(self$name) || !is.character(self$name) || length(self$name) != 1) {
+        stop("Provider name must be a single character string")
       }
       
-      # Validate individual options
-      for (key in names(private$.options)) {
-        if (key %in% names(private$.validation_rules)) {
-          validation_fn <- private$.validation_rules[[key]]
-          if (!validation_fn(private$.options[[key]])) {
-            errors <- c(errors, sprintf("Invalid value for option '%s'", key))
-          }
-        }
+      if (is.null(self$type) || !is.character(self$type) || length(self$type) != 1) {
+        stop("Provider type must be a single character string")
       }
       
-      return(list(
-        valid = length(errors) == 0,
-        errors = errors
-      ))
+      valid_types <- c("mapbox", "leaflet", "openlayers", "gaode", "baidu")
+      if (!self$type %in% valid_types) {
+        stop(paste("Provider type must be one of:", paste(valid_types, collapse = ", ")))
+      }
+      
+      if (!is.logical(self$authentication_required)) {
+        stop("authentication_required must be logical")
+      }
+      
+      if (!is.list(self$supported_features)) {
+        stop("supported_features must be a list")
+      }
+      
+      valid_coord_systems <- c("WGS84", "GCJ02", "BD09")
+      if (!self$coordinate_system %in% valid_coord_systems) {
+        stop(paste("coordinate_system must be one of:", 
+                   paste(valid_coord_systems, collapse = ", ")))
+      }
+      
+      return(TRUE)
     },
     
-    #' Merge Configuration
+    #' Get Configuration as List
     #'
-    #' Merge this configuration with another configuration or list.
+    #' Returns the configuration as a named list.
     #'
-    #' @param config ProviderConfig instance or list to merge
-    #' @return Invisible self for method chaining
-    merge_config = function(config) {
-      if (inherits(config, "ProviderConfig")) {
-        config <- config$to_list()
-      }
-      
-      if (!is.list(config)) {
-        stop("Config must be a list or ProviderConfig instance")
-      }
-      
-      for (key in names(config)) {
-        self$set_option(key, config[[key]])
-      }
-      
-      invisible(self)
-    },
-    
-    #' Convert to List
-    #'
-    #' Convert the configuration to a standard list.
-    #'
-    #' @return List containing all configuration options
+    #' @return Named list containing all configuration settings
     to_list = function() {
-      return(private$.options)
-    },
-    
-    #' Get Provider Name
-    #'
-    #' Get the provider name for this configuration.
-    #'
-    #' @return Character string provider name
-    get_name = function() {
-      return(private$.name)
-    },
-    
-    #' Get Provider Type
-    #'
-    #' Get the provider type for this configuration.
-    #'
-    #' @return Character string provider type
-    get_type = function() {
-      return(private$.type)
+      list(
+        name = self$name,
+        type = self$type,
+        authentication_required = self$authentication_required,
+        supported_features = self$supported_features,
+        coordinate_system = self$coordinate_system,
+        default_style = self$default_style,
+        api_endpoints = self$api_endpoints,
+        rate_limits = self$rate_limits
+      )
     }
   )
 )
 
-#' Create Provider Configuration
+#' Create Default Provider Configurations
 #'
-#' Create a new provider configuration with the specified parameters.
+#' Creates default configuration objects for all supported providers.
 #'
-#' @param name Character string identifying the provider
-#' @param type Character string specifying the provider type
-#' @param defaults List of default configuration options
-#' @param required_options Character vector of required option names
-#' @param validation_rules List of validation functions for options
-#' @return ProviderConfig instance
+#' @return Named list of ProviderConfig objects
+#'
 #' @export
-create_provider_config <- function(name, type, defaults = list(),
-                                  required_options = character(0),
-                                  validation_rules = list()) {
-  return(ProviderConfig$new(name, type, defaults, required_options, validation_rules))
+create_default_provider_configs <- function() {
+  configs <- list()
+  
+  # Mapbox configuration
+  configs$mapbox <- ProviderConfig$new(
+    name = "mapbox",
+    type = "mapbox",
+    auth_required = TRUE,
+    features = list(
+      vector_tiles = TRUE,
+      custom_styles = TRUE,
+      3d_terrain = TRUE,
+      satellite_imagery = TRUE,
+      traffic_data = TRUE
+    ),
+    coord_sys = "WGS84",
+    style = "mapbox://styles/mapbox/streets-v11",
+    endpoints = list(
+      styles = "https://api.mapbox.com/styles/v1",
+      tiles = "https://api.mapbox.com/v4"
+    ),
+    limits = list(
+      requests_per_minute = 600,
+      requests_per_hour = 50000
+    )
+  )
+  
+  # Leaflet configuration
+  configs$leaflet <- ProviderConfig$new(
+    name = "leaflet",
+    type = "leaflet",
+    auth_required = FALSE,
+    features = list(
+      tile_layers = TRUE,
+      custom_markers = TRUE,
+      popup_support = TRUE,
+      layer_control = TRUE,
+      plugin_support = TRUE
+    ),
+    coord_sys = "WGS84",
+    style = "OpenStreetMap",
+    endpoints = list(
+      osm_tiles = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    ),
+    limits = list(
+      requests_per_minute = 300,
+      tile_usage_policy = "fair_use"
+    )
+  )
+  
+  # OpenLayers configuration
+  configs$openlayers <- ProviderConfig$new(
+    name = "openlayers",
+    type = "openlayers",
+    auth_required = FALSE,
+    features = list(
+      vector_layers = TRUE,
+      raster_layers = TRUE,
+      wms_support = TRUE,
+      wfs_support = TRUE,
+      custom_projections = TRUE
+    ),
+    coord_sys = "WGS84",
+    style = "OSM",
+    endpoints = list(
+      osm_tiles = "https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    ),
+    limits = list(
+      requests_per_minute = 300,
+      tile_usage_policy = "fair_use"
+    )
+  )
+  
+  # Gaode Maps configuration
+  configs$gaode <- ProviderConfig$new(
+    name = "gaode",
+    type = "gaode",
+    auth_required = TRUE,
+    features = list(
+      chinese_maps = TRUE,
+      traffic_data = TRUE,
+      poi_search = TRUE,
+      route_planning = TRUE,
+      geocoding = TRUE
+    ),
+    coord_sys = "GCJ02",
+    style = "normal",
+    endpoints = list(
+      api_base = "https://webapi.amap.com/maps",
+      js_api = "https://webapi.amap.com/maps?v=1.4.15"
+    ),
+    limits = list(
+      requests_per_day = 300000,
+      requests_per_minute = 6000
+    )
+  )
+  
+  # Baidu Maps configuration
+  configs$baidu <- ProviderConfig$new(
+    name = "baidu",
+    type = "baidu",
+    auth_required = TRUE,
+    features = list(
+      chinese_maps = TRUE,
+      street_view = TRUE,
+      traffic_data = TRUE,
+      poi_search = TRUE,
+      route_planning = TRUE
+    ),
+    coord_sys = "BD09",
+    style = "normal",
+    endpoints = list(
+      api_base = "https://api.map.baidu.com",
+      js_api = "https://api.map.baidu.com/api?v=3.0"
+    ),
+    limits = list(
+      requests_per_day = 100000,
+      requests_per_minute = 6000
+    )
+  )
+  
+  return(configs)
 }
 
-#' Standard Provider Configurations
+#' Get Provider Configuration
 #'
-#' Pre-defined configurations for standard provider types.
+#' Retrieves configuration for a specific provider.
 #'
-#' @keywords internal
-STANDARD_PROVIDER_CONFIGS <- list(
-  mapbox = function() {
-    create_provider_config(
-      name = "mapbox",
-      type = PROVIDER_TYPES$MAPBOX,
-      defaults = list(
-        style = "mapbox://styles/mapbox/streets-v9",
-        pitch = 0,
-        zoom = 0,
-        bearing = 0,
-        max_zoom = 20,
-        min_zoom = 0,
-        max_pitch = 60,
-        min_pitch = 0,
-        location = c(0, 0),
-        show_view_state = FALSE,
-        repeat_view = FALSE
-      ),
-      required_options = c("token"),
-      validation_rules = list(
-        token = function(x) is.character(x) && length(x) == 1 && nchar(x) > 0,
-        style = function(x) is.character(x) && length(x) == 1,
-        pitch = function(x) is.numeric(x) && length(x) == 1 && x >= 0 && x <= 60,
-        zoom = function(x) is.numeric(x) && length(x) == 1 && x >= 0,
-        bearing = function(x) is.numeric(x) && length(x) == 1 && x >= 0 && x < 360,
-        location = function(x) is.numeric(x) && length(x) == 2
-      )
-    )
-  },
-  
-  leaflet = function() {
-    create_provider_config(
-      name = "leaflet",
-      type = PROVIDER_TYPES$LEAFLET,
-      defaults = list(
-        tile_layer = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        attribution = "© OpenStreetMap contributors",
-        zoom = 10,
-        center = c(0, 0),
-        min_zoom = 0,
-        max_zoom = 18
-      ),
-      required_options = character(0),
-      validation_rules = list(
-        tile_layer = function(x) is.character(x) && length(x) == 1,
-        attribution = function(x) is.character(x) && length(x) == 1,
-        zoom = function(x) is.numeric(x) && length(x) == 1 && x >= 0,
-        center = function(x) is.numeric(x) && length(x) == 2
-      )
-    )
-  },
-  
-  openlayers = function() {
-    create_provider_config(
-      name = "openlayers",
-      type = PROVIDER_TYPES$OPENLAYERS,
-      defaults = list(
-        source_type = "OSM",
-        zoom = 10,
-        center = c(0, 0),
-        min_zoom = 0,
-        max_zoom = 18,
-        projection = "EPSG:3857"
-      ),
-      required_options = character(0),
-      validation_rules = list(
-        source_type = function(x) is.character(x) && length(x) == 1,
-        zoom = function(x) is.numeric(x) && length(x) == 1 && x >= 0,
-        center = function(x) is.numeric(x) && length(x) == 2,
-        projection = function(x) is.character(x) && length(x) == 1
-      )
-    )
-  },
-  
-  gaode = function() {
-    create_provider_config(
-      name = "gaode",
-      type = PROVIDER_TYPES$GAODE,
-      defaults = list(
-        zoom = 10,
-        center = c(116.397428, 39.90923), # Beijing
-        coordinate_system = "GCJ02",
-        map_style = "normal",
-        features = c("bg", "point", "road", "building")
-      ),
-      required_options = c("api_key"),
-      validation_rules = list(
-        api_key = function(x) is.character(x) && length(x) == 1 && nchar(x) > 0,
-        zoom = function(x) is.numeric(x) && length(x) == 1 && x >= 3 && x <= 18,
-        center = function(x) is.numeric(x) && length(x) == 2,
-        coordinate_system = function(x) x %in% c("WGS84", "GCJ02"),
-        map_style = function(x) x %in% c("normal", "dark", "light", "satellite")
-      )
-    )
-  },
-  
-  baidu = function() {
-    create_provider_config(
-      name = "baidu",
-      type = PROVIDER_TYPES$BAIDU,
-      defaults = list(
-        zoom = 10,
-        center = c(116.404, 39.915), # Beijing
-        coordinate_system = "BD09",
-        map_style = "normal",
-        enable_scroll_wheel_zoom = TRUE
-      ),
-      required_options = c("api_key"),
-      validation_rules = list(
-        api_key = function(x) is.character(x) && length(x) == 1 && nchar(x) > 0,
-        zoom = function(x) is.numeric(x) && length(x) == 1 && x >= 3 && x <= 19,
-        center = function(x) is.numeric(x) && length(x) == 2,
-        coordinate_system = function(x) x %in% c("WGS84", "GCJ02", "BD09"),
-        map_style = function(x) x %in% c("normal", "dark", "light", "satellite", "googlelite")
-      )
-    )
-  }
-)
-
-#' Get Standard Provider Configuration
+#' @param provider_name Character string identifying the provider
 #'
-#' Get a pre-defined configuration for a standard provider type.
+#' @return ProviderConfig object for the specified provider
 #'
-#' @param provider_type Character string specifying the provider type
-#' @return ProviderConfig instance
 #' @export
-get_standard_provider_config <- function(provider_type) {
-  if (!provider_type %in% names(STANDARD_PROVIDER_CONFIGS)) {
-    available <- paste(names(STANDARD_PROVIDER_CONFIGS), collapse = ", ")
-    stop(sprintf(
-      "Unknown provider type '%s'. Available types: %s",
-      provider_type, available
-    ))
+get_provider_config <- function(provider_name) {
+  configs <- create_default_provider_configs()
+  
+  if (!provider_name %in% names(configs)) {
+    stop(paste("Unknown provider:", provider_name, 
+               ". Available providers:", paste(names(configs), collapse = ", ")))
   }
   
-  config_fn <- STANDARD_PROVIDER_CONFIGS[[provider_type]]
-  return(config_fn())
+  return(configs[[provider_name]])
+}
+
+#' List Available Providers
+#'
+#' Returns a list of all available provider names.
+#'
+#' @return Character vector of available provider names
+#'
+#' @export
+list_available_providers <- function() {
+  configs <- create_default_provider_configs()
+  return(names(configs))
 }
