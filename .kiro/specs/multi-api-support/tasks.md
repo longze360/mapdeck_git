@@ -185,7 +185,9 @@
     - Write comprehensive unit tests for sampling accuracy and performance
     - _Requirements: 7.8, 7.9, 7.11_
 
-- [-] 10. Implement administrative boundary sampling
+- [x] 10. Implement administrative boundary sampling
+
+
 
 
 
