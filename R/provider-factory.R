@@ -1,226 +1,258 @@
-#' Provider Factory and Registry
+#' Provider Factory and Registry System
 #'
-#' Factory and registry system for managing multiple map providers.
-#' Handles provider creation, registration, and capability management.
+#' This file contains the factory pattern implementation for creating and
+#' managing map provider instances. It includes provider registration,
+#' creation, and capability management.
 #'
-#' @importFrom R6 R6Class
-#' @keywords internal
+#' @name provider-factory
 NULL
 
-#' Provider Registry
+#' Provider Registry Class
 #'
-#' Singleton registry for managing available map providers and their capabilities.
+#' R6 class that maintains a registry of available map providers and their
+#' configurations. Implements the registry pattern for provider management.
 #'
-#' @section Methods:
-#' \describe{
-#'   \item{\code{register_provider(name, class, capabilities)}}{Register a new provider}
-#'   \item{\code{get_provider_class(name)}}{Get provider class by name}
-#'   \item{\code{list_providers()}}{List all registered providers}
-#'   \item{\code{get_capabilities(name)}}{Get capabilities for a provider}
-#'   \item{\code{is_registered(name)}}{Check if provider is registered}
-#' }
+#' @field providers List of registered provider classes
+#' @field configs List of provider configurations
 #'
-#' @keywords internal
-ProviderRegistry <- R6::R6Class(
-  "ProviderRegistry",
-  private = list(
-    providers = list(),
-    
-    # Singleton instance
-    .instance = NULL
-  ),
-  
+#' @export
+ProviderRegistry <- R6::R6Class("ProviderRegistry",
   public = list(
-    #' Register Provider
+    providers = NULL,
+    configs = NULL,
+    
+    #' Initialize Provider Registry
     #'
-    #' Register a new map provider with the registry.
+    #' @return New ProviderRegistry instance
+    initialize = function() {
+      self$providers <- list()
+      self$configs <- create_default_provider_configs()
+    },
+    
+    #' Register Provider Class
     #'
-    #' @param name Character string identifying the provider
-    #' @param provider_class R6 class that implements IMapProvider
-    #' @param capabilities List of capabilities supported by the provider
+    #' Register a new provider class with the registry.
+    #'
+    #' @param name Character string provider name
+    #' @param provider_class R6 class implementing IMapProvider interface
+    #' @param config ProviderConfig object (optional)
+    #'
     #' @return Invisible self for method chaining
-    register_provider = function(name, provider_class, capabilities = list()) {
-      if (!is.character(name) || length(name) != 1) {
-        stop("Provider name must be a single character string")
+    register_provider = function(name, provider_class, config = NULL) {
+      # Validate provider class implements interface
+      if (!validate_provider_interface(provider_class)) {
+        stop("Provider class must implement IMapProvider interface")
       }
       
-      if (!inherits(provider_class, "R6ClassGenerator")) {
-        stop("Provider class must be an R6 class generator")
+      # Use provided config or get default
+      if (is.null(config)) {
+        config <- get_provider_config(name)
+        if (is.null(config)) {
+          stop("No configuration found for provider: ", name)
+        }
       }
       
-      private$providers[[name]] <- list(
-        class = provider_class,
-        capabilities = capabilities
-      )
+      # Validate configuration
+      if (!validate_provider_config(config)) {
+        stop("Invalid provider configuration for: ", name)
+      }
+      
+      self$providers[[name]] <- provider_class
+      self$configs[[name]] <- config
       
       invisible(self)
+    },
+    
+    #' Unregister Provider
+    #'
+    #' Remove a provider from the registry.
+    #'
+    #' @param name Character string provider name
+    #'
+    #' @return Invisible self for method chaining
+    unregister_provider = function(name) {
+      if (name %in% names(self$providers)) {
+        self$providers[[name]] <- NULL
+        self$configs[[name]] <- NULL
+      }
+      invisible(self)
+    },
+    
+    #' Check if Provider is Registered
+    #'
+    #' @param name Character string provider name
+    #'
+    #' @return Logical indicating if provider is registered
+    is_registered = function(name) {
+      return(name %in% names(self$providers))
+    },
+    
+    #' Get Registered Providers
+    #'
+    #' @return Character vector of registered provider names
+    get_registered_providers = function() {
+      return(names(self$providers))
     },
     
     #' Get Provider Class
     #'
-    #' Retrieve the R6 class for a registered provider.
+    #' @param name Character string provider name
     #'
-    #' @param name Character string identifying the provider
-    #' @return R6 class generator for the provider
+    #' @return R6 class or NULL if not found
     get_provider_class = function(name) {
-      if (!self$is_registered(name)) {
-        stop(sprintf("Provider '%s' is not registered", name))
+      return(self$providers[[name]])
+    },
+    
+    #' Get Provider Configuration
+    #'
+    #' @param name Character string provider name
+    #'
+    #' @return ProviderConfig object or NULL if not found
+    get_provider_config = function(name) {
+      return(self$configs[[name]])
+    },
+    
+    #' Get Provider Capabilities
+    #'
+    #' @param name Character string provider name
+    #'
+    #' @return Character vector of capabilities or NULL if not found
+    get_provider_capabilities = function(name) {
+      config <- self$get_provider_config(name)
+      if (!is.null(config)) {
+        return(config$supported_features)
       }
-      
-      return(private$providers[[name]]$class)
-    },
-    
-    #' List Providers
-    #'
-    #' Get a list of all registered provider names.
-    #'
-    #' @return Character vector of provider names
-    list_providers = function() {
-      return(names(private$providers))
-    },
-    
-    #' Get Capabilities
-    #'
-    #' Get the capabilities for a registered provider.
-    #'
-    #' @param name Character string identifying the provider
-    #' @return List of provider capabilities
-    get_capabilities = function(name) {
-      if (!self$is_registered(name)) {
-        stop(sprintf("Provider '%s' is not registered", name))
-      }
-      
-      return(private$providers[[name]]$capabilities)
-    },
-    
-    #' Is Registered
-    #'
-    #' Check if a provider is registered with the registry.
-    #'
-    #' @param name Character string identifying the provider
-    #' @return Logical indicating if provider is registered
-    is_registered = function(name) {
-      return(name %in% names(private$providers))
-    },
-    
-    #' Clear Registry
-    #'
-    #' Clear all registered providers (primarily for testing).
-    #'
-    #' @return Invisible self for method chaining
-    clear_registry = function() {
-      private$providers <- list()
-      invisible(self)
+      return(NULL)
     }
   )
 )
 
-# Create singleton instance
-.provider_registry <- NULL
-
-#' Get Provider Registry
+#' Provider Factory Class
 #'
-#' Get the singleton instance of the provider registry.
+#' R6 class implementing the factory pattern for creating provider instances.
+#' Uses the provider registry to create and configure provider instances.
 #'
-#' @return ProviderRegistry instance
-#' @keywords internal
-get_provider_registry <- function() {
-  if (is.null(.provider_registry)) {
-    .provider_registry <<- ProviderRegistry$new()
-  }
-  return(.provider_registry)
-}
-
-#' Provider Factory
+#' @field registry ProviderRegistry instance
 #'
-#' Factory class for creating map provider instances.
-#'
-#' @section Methods:
-#' \describe{
-#'   \item{\code{create_provider(name, config)}}{Create a provider instance}
-#'   \item{\code{validate_provider_config(name, config)}}{Validate provider configuration}
-#' }
-#'
-#' @keywords internal
-ProviderFactory <- R6::R6Class(
-  "ProviderFactory",
+#' @export
+ProviderFactory <- R6::R6Class("ProviderFactory",
   public = list(
-    #' Create Provider
+    registry = NULL,
+    
+    #' Initialize Provider Factory
     #'
-    #' Create an instance of the specified provider with the given configuration.
+    #' @param registry ProviderRegistry instance (optional)
     #'
-    #' @param name Character string identifying the provider
-    #' @param config List containing provider-specific configuration
-    #' @return Instance of the requested provider
-    create_provider = function(name, config = list()) {
-      registry <- get_provider_registry()
-      
-      if (!registry$is_registered(name)) {
-        available <- paste(registry$list_providers(), collapse = ", ")
-        stop(sprintf(
-          "Provider '%s' is not registered. Available providers: %s",
-          name, available
-        ))
+    #' @return New ProviderFactory instance
+    initialize = function(registry = NULL) {
+      if (is.null(registry)) {
+        self$registry <- ProviderRegistry$new()
+      } else {
+        self$registry <- registry
       }
-      
-      # Validate configuration
-      validation_result <- self$validate_provider_config(name, config)
-      if (!validation_result$valid) {
-        stop(sprintf(
-          "Invalid configuration for provider '%s': %s",
-          name, paste(validation_result$errors, collapse = "; ")
-        ))
-      }
-      
-      # Create provider instance
-      provider_class <- registry$get_provider_class(name)
-      provider_instance <- provider_class$new(config)
-      
-      return(provider_instance)
     },
     
-    #' Validate Provider Configuration
+    #' Create Provider Instance
     #'
-    #' Validate the configuration for a specific provider.
+    #' Create a new provider instance with the specified configuration.
     #'
-    #' @param name Character string identifying the provider
-    #' @param config List containing configuration to validate
-    #' @return List with 'valid' (logical) and 'errors' (character vector)
-    validate_provider_config = function(name, config) {
-      registry <- get_provider_registry()
-      
-      if (!registry$is_registered(name)) {
-        return(list(
-          valid = FALSE,
-          errors = sprintf("Provider '%s' is not registered", name)
-        ))
+    #' @param provider_name Character string provider name
+    #' @param config List of additional configuration options
+    #'
+    #' @return Provider instance or error if provider not found
+    create_provider = function(provider_name, config = list()) {
+      # Check if provider is registered
+      if (!self$registry$is_registered(provider_name)) {
+        stop("Provider not registered: ", provider_name, 
+             ". Available providers: ", 
+             paste(self$registry$get_registered_providers(), collapse = ", "))
       }
       
-      # Create temporary instance to validate config
+      # Get provider class and configuration
+      provider_class <- self$registry$get_provider_class(provider_name)
+      provider_config <- self$registry$get_provider_config(provider_name)
+      
+      # Merge default config with user config
+      merged_config <- private$merge_configs(provider_config$to_list(), config)
+      
+      # Create and return provider instance
       tryCatch({
-        provider_class <- registry$get_provider_class(name)
-        temp_instance <- provider_class$new()
-        validation_result <- temp_instance$validate_config(config)
-        return(validation_result)
+        provider_instance <- provider_class$new(merged_config)
+        return(provider_instance)
       }, error = function(e) {
-        return(list(
-          valid = FALSE,
-          errors = as.character(e$message)
-        ))
+        stop("Failed to create provider instance for '", provider_name, "': ", e$message)
       })
+    },
+    
+    #' Get Available Providers
+    #'
+    #' @return Character vector of available provider names
+    get_available_providers = function() {
+      return(self$registry$get_registered_providers())
+    },
+    
+    #' Check Provider Availability
+    #'
+    #' @param provider_name Character string provider name
+    #'
+    #' @return Logical indicating if provider is available
+    is_provider_available = function(provider_name) {
+      return(self$registry$is_registered(provider_name))
+    },
+    
+    #' Get Provider Information
+    #'
+    #' @param provider_name Character string provider name
+    #'
+    #' @return List containing provider information
+    get_provider_info = function(provider_name) {
+      if (!self$registry$is_registered(provider_name)) {
+        return(NULL)
+      }
+      
+      config <- self$registry$get_provider_config(provider_name)
+      capabilities <- self$registry$get_provider_capabilities(provider_name)
+      
+      return(list(
+        name = provider_name,
+        type = config$type,
+        authentication_required = config$authentication_required,
+        coordinate_system = config$coordinate_system,
+        default_style = config$default_style,
+        capabilities = capabilities
+      ))
+    }
+  ),
+  
+  private = list(
+    #' Merge Configuration Objects
+    #'
+    #' @param default_config List of default configuration
+    #' @param user_config List of user configuration
+    #'
+    #' @return Merged configuration list
+    merge_configs = function(default_config, user_config) {
+      merged <- default_config
+      
+      for (key in names(user_config)) {
+        merged[[key]] <- user_config[[key]]
+      }
+      
+      return(merged)
     }
   )
 )
 
-# Create singleton factory instance
+# Global provider factory instance
 .provider_factory <- NULL
 
-#' Get Provider Factory
+#' Get Global Provider Factory
 #'
-#' Get the singleton instance of the provider factory.
+#' Returns the global provider factory instance, creating it if necessary.
 #'
 #' @return ProviderFactory instance
-#' @keywords internal
+#'
+#' @export
 get_provider_factory <- function() {
   if (is.null(.provider_factory)) {
     .provider_factory <<- ProviderFactory$new()
@@ -230,51 +262,58 @@ get_provider_factory <- function() {
 
 #' Register Provider
 #'
-#' Register a new map provider with the global registry.
+#' Convenience function to register a provider with the global factory.
 #'
-#' @param name Character string identifying the provider
-#' @param provider_class R6 class that implements IMapProvider
-#' @param capabilities List of capabilities supported by the provider
+#' @param name Character string provider name
+#' @param provider_class R6 class implementing IMapProvider interface
+#' @param config ProviderConfig object (optional)
+#'
 #' @return Invisible NULL
+#'
 #' @export
-register_provider <- function(name, provider_class, capabilities = list()) {
-  registry <- get_provider_registry()
-  registry$register_provider(name, provider_class, capabilities)
+register_provider <- function(name, provider_class, config = NULL) {
+  factory <- get_provider_factory()
+  factory$registry$register_provider(name, provider_class, config)
   invisible(NULL)
 }
 
 #' Create Provider
 #'
-#' Create an instance of the specified map provider.
+#' Convenience function to create a provider instance using the global factory.
 #'
-#' @param name Character string identifying the provider
-#' @param config List containing provider-specific configuration
-#' @return Instance of the requested provider
+#' @param provider_name Character string provider name
+#' @param config List of additional configuration options
+#'
+#' @return Provider instance
+#'
 #' @export
-create_provider <- function(name, config = list()) {
+create_provider <- function(provider_name, config = list()) {
   factory <- get_provider_factory()
-  return(factory$create_provider(name, config))
+  return(factory$create_provider(provider_name, config))
 }
 
-#' List Available Providers
+#' Get Available Providers
 #'
-#' Get a list of all registered map providers.
+#' Convenience function to get available providers from the global factory.
 #'
-#' @return Character vector of provider names
+#' @return Character vector of available provider names
+#'
 #' @export
-list_providers <- function() {
-  registry <- get_provider_registry()
-  return(registry$list_providers())
+get_available_providers <- function() {
+  factory <- get_provider_factory()
+  return(factory$get_available_providers())
 }
 
 #' Get Provider Capabilities
 #'
-#' Get the capabilities supported by a specific provider.
+#' Convenience function to get provider capabilities from the global factory.
 #'
-#' @param name Character string identifying the provider
-#' @return List of provider capabilities
+#' @param provider_name Character string provider name
+#'
+#' @return Character vector of capabilities or NULL if not found
+#'
 #' @export
-get_provider_capabilities <- function(name) {
-  registry <- get_provider_registry()
-  return(registry$get_capabilities(name))
+get_provider_capabilities <- function(provider_name) {
+  factory <- get_provider_factory()
+  return(factory$registry$get_provider_capabilities(provider_name))
 }

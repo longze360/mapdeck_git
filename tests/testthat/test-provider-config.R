@@ -1,112 +1,152 @@
-test_that("ProviderConfig class works correctly", {
-  # Test basic configuration creation
-  config <- create_provider_config(
-    name = "test",
+test_that("ProviderConfig initializes correctly", {
+  config <- ProviderConfig$new(
+    name = "test_provider",
     type = "test_type",
-    defaults = list(option1 = "default1", option2 = 10),
-    required_options = c("required1"),
-    validation_rules = list(
-      option2 = function(x) is.numeric(x) && x > 0
-    )
+    auth_required = TRUE,
+    features = c("feature1", "feature2"),
+    coord_sys = "EPSG:4326",
+    style = "test_style"
   )
   
-  expect_true(R6::is.R6(config))
-  expect_equal(config$get_name(), "test")
-  expect_equal(config$get_type(), "test_type")
-  expect_equal(config$get_option("option1"), "default1")
-  expect_equal(config$get_option("option2"), 10)
+  expect_equal(config$name, "test_provider")
+  expect_equal(config$type, "test_type")
+  expect_true(config$authentication_required)
+  expect_equal(config$supported_features, c("feature1", "feature2"))
+  expect_equal(config$coordinate_system, "EPSG:4326")
+  expect_equal(config$default_style, "test_style")
 })
 
-test_that("ProviderConfig validation works correctly", {
-  config <- create_provider_config(
-    name = "test",
-    type = "test_type",
-    defaults = list(option1 = "default1"),
-    required_options = c("required1"),
-    validation_rules = list(
-      option1 = function(x) is.character(x) && nchar(x) > 0
-    )
+test_that("ProviderConfig validates input parameters", {
+  # Test invalid name
+  expect_error(
+    ProviderConfig$new(name = NULL, type = "test"),
+    "Provider name must be a single character string"
   )
   
-  # Test validation with missing required option
-  result <- config$validate()
-  expect_false(result$valid)
-  expect_true(grepl("Missing required options: required1", result$errors))
-  
-  # Test validation with valid required option
-  config$set_option("required1", "value1")
-  result <- config$validate()
-  expect_true(result$valid)
-  expect_equal(length(result$errors), 0)
-})
-
-test_that("ProviderConfig option setting and validation works", {
-  config <- create_provider_config(
-    name = "test",
-    type = "test_type",
-    validation_rules = list(
-      numeric_option = function(x) is.numeric(x) && x > 0
-    )
+  expect_error(
+    ProviderConfig$new(name = c("a", "b"), type = "test"),
+    "Provider name must be a single character string"
   )
   
-  # Test setting valid option
-  config$set_option("numeric_option", 5)
-  expect_equal(config$get_option("numeric_option"), 5)
-  
-  # Test setting invalid option
-  expect_error(config$set_option("numeric_option", -1), "Invalid value for option")
-})
-
-test_that("ProviderConfig merging works correctly", {
-  config <- create_provider_config(
-    name = "test",
-    type = "test_type",
-    defaults = list(option1 = "default1", option2 = 10)
+  # Test invalid type
+  expect_error(
+    ProviderConfig$new(name = "test", type = NULL),
+    "Provider type must be a single character string"
   )
   
-  # Test merging with list
-  config$merge_config(list(option1 = "new_value", option3 = "added"))
-  expect_equal(config$get_option("option1"), "new_value")
-  expect_equal(config$get_option("option2"), 10)
-  expect_equal(config$get_option("option3"), "added")
-  
-  # Test merging with another ProviderConfig
-  other_config <- create_provider_config(
-    name = "other",
-    type = "other_type",
-    defaults = list(option4 = "other_value")
+  # Test invalid authentication_required
+  expect_error(
+    ProviderConfig$new(name = "test", type = "test", auth_required = "yes"),
+    "authentication_required must be logical"
   )
-  config$merge_config(other_config)
-  expect_equal(config$get_option("option4"), "other_value")
+  
+  # Test invalid features
+  expect_error(
+    ProviderConfig$new(name = "test", type = "test", features = 123),
+    "supported_features must be a character vector"
+  )
 })
 
-test_that("Standard provider configurations are available", {
-  # Test that standard configs exist
-  expect_true("mapbox" %in% names(STANDARD_PROVIDER_CONFIGS))
-  expect_true("leaflet" %in% names(STANDARD_PROVIDER_CONFIGS))
-  expect_true("openlayers" %in% names(STANDARD_PROVIDER_CONFIGS))
-  expect_true("gaode" %in% names(STANDARD_PROVIDER_CONFIGS))
-  expect_true("baidu" %in% names(STANDARD_PROVIDER_CONFIGS))
-  
-  # Test getting standard config
-  mapbox_config <- get_standard_provider_config("mapbox")
-  expect_true(R6::is.R6(mapbox_config))
-  expect_equal(mapbox_config$get_name(), "mapbox")
-  expect_equal(mapbox_config$get_type(), PROVIDER_TYPES$MAPBOX)
-  
-  # Test error for unknown provider type
-  expect_error(get_standard_provider_config("unknown"), "Unknown provider type")
-})
-
-test_that("ProviderConfig to_list works correctly", {
-  config <- create_provider_config(
+test_that("ProviderConfig supports_feature method works", {
+  config <- ProviderConfig$new(
     name = "test",
-    type = "test_type",
-    defaults = list(option1 = "value1", option2 = 10)
+    type = "test",
+    features = c("feature1", "feature2", "feature3")
+  )
+  
+  expect_true(config$supports_feature("feature1"))
+  expect_true(config$supports_feature("feature2"))
+  expect_false(config$supports_feature("nonexistent"))
+})
+
+test_that("ProviderConfig to_list method works", {
+  config <- ProviderConfig$new(
+    name = "test",
+    type = "test",
+    auth_required = TRUE,
+    features = c("feature1", "feature2")
   )
   
   config_list <- config$to_list()
+  
   expect_true(is.list(config_list))
-  expect_equal(config_list$option1, "value1")
-  expect_equal(config_list$option2, 10)
+  expect_equal(config_list$name, "test")
+  expect_equal(config_list$type, "test")
+  expect_true(config_list$authentication_required)
+  expect_equal(config_list$supported_features, c("feature1", "feature2"))
+})
+
+test_that("ProviderConfig update method works", {
+  config <- ProviderConfig$new(name = "test", type = "test")
+  
+  config$update(list(
+    default_style = "new_style",
+    supported_features = c("new_feature")
+  ))
+  
+  expect_equal(config$default_style, "new_style")
+  expect_equal(config$supported_features, c("new_feature"))
+})
+
+test_that("create_default_provider_configs creates all expected providers", {
+  configs <- create_default_provider_configs()
+  
+  expected_providers <- c("mapbox", "leaflet", "openlayers", "gaode", "baidu")
+  expect_true(all(expected_providers %in% names(configs)))
+  
+  # Test each config is a ProviderConfig instance
+  for (provider in expected_providers) {
+    expect_true(inherits(configs[[provider]], "ProviderConfig"))
+  }
+})
+
+test_that("mapbox config has correct settings", {
+  configs <- create_default_provider_configs()
+  mapbox_config <- configs$mapbox
+  
+  expect_equal(mapbox_config$name, "mapbox")
+  expect_equal(mapbox_config$type, "mapbox-gl")
+  expect_true(mapbox_config$authentication_required)
+  expect_equal(mapbox_config$coordinate_system, "EPSG:4326")
+  expect_true("vector_tiles" %in% mapbox_config$supported_features)
+})
+
+test_that("chinese provider configs have correct coordinate systems", {
+  configs <- create_default_provider_configs()
+  
+  expect_equal(configs$gaode$coordinate_system, "GCJ02")
+  expect_equal(configs$baidu$coordinate_system, "BD09")
+})
+
+test_that("get_provider_config works correctly", {
+  # Test existing provider
+  mapbox_config <- get_provider_config("mapbox")
+  expect_true(inherits(mapbox_config, "ProviderConfig"))
+  expect_equal(mapbox_config$name, "mapbox")
+  
+  # Test non-existing provider
+  expect_null(get_provider_config("nonexistent"))
+})
+
+test_that("list_available_providers returns correct providers", {
+  providers <- list_available_providers()
+  expected_providers <- c("mapbox", "leaflet", "openlayers", "gaode", "baidu")
+  
+  expect_true(is.character(providers))
+  expect_true(all(expected_providers %in% providers))
+})
+
+test_that("validate_provider_config works correctly", {
+  # Test valid config
+  valid_config <- ProviderConfig$new(name = "test", type = "test")
+  expect_true(validate_provider_config(valid_config))
+  
+  # Test invalid config (not ProviderConfig instance)
+  expect_false(validate_provider_config(list()))
+  expect_false(validate_provider_config("not_config"))
+  
+  # Test config with missing fields
+  incomplete_config <- list(name = "test")
+  class(incomplete_config) <- "ProviderConfig"
+  expect_false(validate_provider_config(incomplete_config))
 })

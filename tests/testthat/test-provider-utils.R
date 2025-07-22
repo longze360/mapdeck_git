@@ -1,233 +1,269 @@
 test_that("validate_provider_name works correctly", {
-  # Clear registry for clean test
-  registry <- get_provider_registry()
-  registry$clear_registry()
+  # Mock get_available_providers to return test providers
+  mockery::stub(validate_provider_name, "get_available_providers", 
+                c("mapbox", "leaflet", "test"))
   
-  # Test with NULL
-  expect_false(validate_provider_name(NULL))
-  expect_true(validate_provider_name(NULL, allow_null = TRUE))
+  # Test valid provider name
+  expect_equal(validate_provider_name("mapbox"), "mapbox")
   
-  # Test with invalid types
-  expect_false(validate_provider_name(123))
-  expect_false(validate_provider_name(c("a", "b")))
+  # Test NULL with allow_null = TRUE
+  expect_null(validate_provider_name(NULL, allow_null = TRUE))
   
-  # Test with unregistered provider
-  expect_false(validate_provider_name("unregistered"))
+  # Test NULL with allow_null = FALSE
+  expect_error(validate_provider_name(NULL), "Provider name cannot be NULL")
   
-  # Register a mock provider and test
-  MockProvider <- R6::R6Class(
-    "MockProvider",
-    inherit = IMapProvider,
-    public = list(
-      initialize = function(config = list()) invisible(self),
-      validate_config = function(config) list(valid = TRUE, errors = character(0))
-    )
+  # Test invalid types
+  expect_error(validate_provider_name(123), "must be a single character string")
+  expect_error(validate_provider_name(c("a", "b")), "must be a single character string")
+  
+  # Test empty string
+  expect_error(validate_provider_name(""), "Provider name cannot be empty")
+  
+  # Test unavailable provider
+  expect_error(validate_provider_name("nonexistent"), "Provider .* is not available")
+})
+
+test_that("validate_map_options validates coordinates correctly", {
+  # Test valid options
+  valid_options <- list(
+    longitude = -74.0,
+    latitude = 40.7,
+    zoom = 10,
+    pitch = 30,
+    bearing = 45
   )
-  registry$register_provider("test_provider", MockProvider)
+  expect_equal(validate_map_options(valid_options), valid_options)
   
-  expect_true(validate_provider_name("test_provider"))
+  # Test invalid longitude
+  expect_error(
+    validate_map_options(list(longitude = 200)),
+    "longitude must be between -180 and 180"
+  )
+  
+  expect_error(
+    validate_map_options(list(longitude = "invalid")),
+    "longitude must be a single numeric value"
+  )
+  
+  # Test invalid latitude
+  expect_error(
+    validate_map_options(list(latitude = 100)),
+    "latitude must be between -90 and 90"
+  )
+  
+  # Test invalid zoom
+  expect_error(
+    validate_map_options(list(zoom = -1)),
+    "zoom must be between 0 and 24"
+  )
+  
+  expect_error(
+    validate_map_options(list(zoom = 30)),
+    "zoom must be between 0 and 24"
+  )
+  
+  # Test invalid pitch
+  expect_error(
+    validate_map_options(list(pitch = 70)),
+    "pitch must be between 0 and 60"
+  )
+  
+  # Test invalid bearing
+  expect_error(
+    validate_map_options(list(bearing = 200)),
+    "bearing must be between -180 and 180"
+  )
+  
+  # Test non-list input
+  expect_error(validate_map_options("not_list"), "Map options must be a list")
 })
 
-test_that("normalize_location works correctly", {
-  # Test with NULL
-  expect_equal(normalize_location(NULL), c(0, 0))
+test_that("validate_layer_config works correctly", {
+  # Test valid layer config
+  valid_layer <- list(
+    type = "ScatterplotLayer",
+    id = "test-layer",
+    data = data.frame(x = 1, y = 2)
+  )
+  expect_equal(validate_layer_config(valid_layer), valid_layer)
   
-  # Test with numeric vector
-  expect_equal(normalize_location(c(1, 2)), c(1, 2))
-  expect_equal(normalize_location(c(1, 2, 3)), c(1, 2))
+  # Test missing required fields
+  expect_error(
+    validate_layer_config(list(type = "ScatterplotLayer")),
+    "Layer configuration missing required fields: id"
+  )
   
-  # Test with named list
-  expect_equal(normalize_location(list(lon = 1, lat = 2)), c(1, 2))
-  expect_equal(normalize_location(list(lng = 1, lat = 2)), c(1, 2))
+  expect_error(
+    validate_layer_config(list(id = "test")),
+    "Layer configuration missing required fields: type"
+  )
   
-  # Test with unnamed list
-  expect_equal(normalize_location(list(1, 2)), c(1, 2))
+  # Test invalid layer type
+  expect_error(
+    validate_layer_config(list(type = 123, id = "test")),
+    "Layer type must be a single character string"
+  )
   
-  # Test with data.frame
-  df <- data.frame(longitude = 1, latitude = 2)
-  expect_equal(normalize_location(df), c(1, 2))
+  # Test invalid layer ID
+  expect_error(
+    validate_layer_config(list(type = "test", id = 123)),
+    "Layer id must be a single character string"
+  )
   
-  df2 <- data.frame(lon = 1, lat = 2)
-  expect_equal(normalize_location(df2), c(1, 2))
-  
-  # Test error cases
-  expect_error(normalize_location("invalid"), "Location must be a numeric vector")
-  expect_error(normalize_location(list()), "Invalid location format")
+  # Test non-list input
+  expect_error(validate_layer_config("not_list"), "Layer configuration must be a list")
 })
 
-test_that("validate_zoom works correctly", {
-  # Test with NULL
-  expect_equal(validate_zoom(NULL), 0)
+test_that("create_error_handler creates proper error handler", {
+  handler <- create_error_handler("test_provider", "test_operation")
   
-  # Test with valid zoom
-  expect_equal(validate_zoom(10), 10)
+  # Test error handling
+  test_error <- simpleError("test error message")
+  handled_error <- handler(test_error)
   
-  # Test with zoom below minimum
-  expect_warning(result <- validate_zoom(-1))
-  expect_equal(result, 0)
-  
-  # Test with zoom above maximum
-  expect_warning(result <- validate_zoom(25))
-  expect_equal(result, 20)
-  
-  # Test with custom limits
-  expect_equal(validate_zoom(5, min_zoom = 2, max_zoom = 15), 5)
-  
-  # Test error cases
-  expect_error(validate_zoom("invalid"), "Zoom must be a single numeric value")
-  expect_error(validate_zoom(c(1, 2)), "Zoom must be a single numeric value")
+  expect_true(inherits(handled_error, "MapdeckProviderError"))
+  expect_equal(handled_error$provider, "test_provider")
+  expect_equal(handled_error$operation, "test_operation")
+  expect_true(grepl("test error message", handled_error$message))
 })
 
-test_that("validate_bearing works correctly", {
-  # Test with NULL
-  expect_equal(validate_bearing(NULL), 0)
+test_that("normalize_style works correctly", {
+  # Test NULL style
+  expect_null(normalize_style(NULL))
   
-  # Test with valid bearing
-  expect_equal(validate_bearing(90), 90)
+  # Test character style
+  expect_equal(normalize_style("mapbox://styles/mapbox/streets-v11"), 
+               "mapbox://styles/mapbox/streets-v11")
   
-  # Test with bearing normalization
-  expect_equal(validate_bearing(450), 90)
-  expect_equal(validate_bearing(-90), 270)
+  # Test invalid character style (multiple values)
+  expect_error(normalize_style(c("style1", "style2")), 
+               "Style name must be a single character string")
   
-  # Test error cases
-  expect_error(validate_bearing("invalid"), "Bearing must be a single numeric value")
-  expect_error(validate_bearing(c(1, 2)), "Bearing must be a single numeric value")
+  # Test list style
+  style_list <- list(version = 8, sources = list(), layers = list())
+  expect_equal(normalize_style(style_list), style_list)
+  
+  # Test list style without version (should warn)
+  expect_warning(
+    normalize_style(list(sources = list())),
+    "Style specification missing 'version' field"
+  )
+  
+  # Test invalid style type
+  expect_error(normalize_style(123), "Style must be a character string or list")
 })
 
-test_that("validate_pitch works correctly", {
-  # Test with NULL
-  expect_equal(validate_pitch(NULL), 0)
+test_that("check_provider_feature works correctly", {
+  # Mock get_provider_capabilities
+  mockery::stub(check_provider_feature, "get_provider_capabilities", 
+                c("feature1", "feature2", "feature3"))
   
-  # Test with valid pitch
-  expect_equal(validate_pitch(30), 30)
+  expect_true(check_provider_feature("test_provider", "feature1"))
+  expect_false(check_provider_feature("test_provider", "nonexistent"))
   
-  # Test with pitch below minimum
-  expect_warning(result <- validate_pitch(-10))
-  expect_equal(result, 0)
-  
-  # Test with pitch above maximum
-  expect_warning(result <- validate_pitch(70))
-  expect_equal(result, 60)
-  
-  # Test with custom limits
-  expect_equal(validate_pitch(45, min_pitch = 10, max_pitch = 50), 45)
-  
-  # Test error cases
-  expect_error(validate_pitch("invalid"), "Pitch must be a single numeric value")
-  expect_error(validate_pitch(c(1, 2)), "Pitch must be a single numeric value")
+  # Test with NULL capabilities
+  mockery::stub(check_provider_feature, "get_provider_capabilities", NULL)
+  expect_warning(result <- check_provider_feature("test_provider", "feature1"))
+  expect_false(result)
 })
 
-test_that("generate_layer_id works correctly", {
-  # Test basic functionality
-  id1 <- generate_layer_id("test")
-  id2 <- generate_layer_id("test")
+test_that("generate_layer_id creates unique IDs", {
+  id1 <- generate_layer_id()
+  id2 <- generate_layer_id()
   
   expect_true(is.character(id1))
+  expect_true(is.character(id2))
   expect_true(nchar(id1) > 0)
-  expect_true(grepl("layer_test_", id1))
+  expect_true(nchar(id2) > 0)
   expect_false(id1 == id2)  # Should be unique
   
   # Test with custom prefix
-  id3 <- generate_layer_id("test", "custom")
-  expect_true(grepl("custom_test_", id3))
+  custom_id <- generate_layer_id("custom")
+  expect_true(grepl("^custom_", custom_id))
 })
 
-test_that("merge_layer_options works correctly", {
-  defaults <- list(
-    option1 = "default1",
-    option2 = 10,
-    nested = list(sub1 = "default_sub1", sub2 = 20)
+test_that("sanitize_container_id works correctly", {
+  # Test valid ID
+  expect_equal(sanitize_container_id("valid_id"), "valid_id")
+  
+  # Test ID with invalid characters
+  expect_equal(sanitize_container_id("invalid-id!@#"), "invalid-id___")
+  
+  # Test ID starting with number
+  expect_equal(sanitize_container_id("123invalid"), "map_123invalid")
+  
+  # Test empty string
+  expect_error(sanitize_container_id(""), "Container ID cannot be empty")
+  
+  # Test invalid types
+  expect_error(sanitize_container_id(123), "must be a single character string")
+  expect_error(sanitize_container_id(c("a", "b")), "must be a single character string")
+})
+
+test_that("standardize_coordinates works correctly", {
+  # Test with data frame
+  df <- data.frame(
+    longitude = c(-74.0, -73.9),
+    latitude = c(40.7, 40.8),
+    value = c(1, 2)
   )
   
-  user_options <- list(
-    option1 = "user1",
-    option3 = "new_option",
-    nested = list(sub1 = "user_sub1", sub3 = "new_sub")
+  result <- standardize_coordinates(df)
+  expect_equal(result, df)
+  
+  # Test with custom column names
+  df_custom <- data.frame(
+    lon = c(-74.0, -73.9),
+    lat = c(40.7, 40.8),
+    value = c(1, 2)
   )
   
-  result <- merge_layer_options(defaults, user_options)
+  result_custom <- standardize_coordinates(df_custom, "lon", "lat")
+  expect_equal(result_custom, df_custom)
   
-  expect_equal(result$option1, "user1")
-  expect_equal(result$option2, 10)
-  expect_equal(result$option3, "new_option")
-  expect_equal(result$nested$sub1, "user_sub1")
-  expect_equal(result$nested$sub2, 20)
-  expect_equal(result$nested$sub3, "new_sub")
+  # Test with matrix input
+  mat <- matrix(c(-74.0, 40.7, -73.9, 40.8), ncol = 2)
+  colnames(mat) <- c("longitude", "latitude")
   
-  # Test with NULL user options
-  result2 <- merge_layer_options(defaults, NULL)
-  expect_equal(result2, defaults)
+  result_mat <- standardize_coordinates(mat)
+  expect_true(is.data.frame(result_mat))
   
-  # Test error cases
-  expect_error(merge_layer_options("invalid", list()), "must be lists")
-  expect_error(merge_layer_options(list(), "invalid"), "must be lists")
-})
-
-test_that("validate_layer_data works correctly", {
-  # Test with NULL data
-  expect_true(validate_layer_data(NULL))
-  expect_false(validate_layer_data(NULL, required_columns = c("col1")))
-  
-  # Test with data.frame
-  df <- data.frame(col1 = 1:3, col2 = letters[1:3])
-  expect_true(validate_layer_data(df))
-  expect_true(validate_layer_data(df, required_columns = c("col1")))
-  expect_warning(result <- validate_layer_data(df, required_columns = c("missing")))
-  expect_false(result)
-  
-  # Test with list
-  lst <- list(col1 = 1:3, col2 = letters[1:3])
-  expect_true(validate_layer_data(lst))
-  expect_true(validate_layer_data(lst, required_columns = c("col1")))
-  
-  # Test with invalid data
-  expect_false(validate_layer_data("invalid"))
-})
-
-test_that("convert_style_to_provider works correctly", {
-  # Test with NULL
-  expect_null(convert_style_to_provider(NULL, "mapbox"))
-  
-  # Test Mapbox conversions
-  expect_equal(convert_style_to_provider("streets", "mapbox"), 
-               "mapbox://styles/mapbox/streets-v11")
-  expect_equal(convert_style_to_provider("mapbox://custom", "mapbox"), 
-               "mapbox://custom")
-  
-  # Test Leaflet conversions
-  expect_equal(convert_style_to_provider("streets", "leaflet"), 
-               "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png")
-  
-  # Test Gaode conversions
-  expect_equal(convert_style_to_provider("streets", "gaode"), "normal")
-  
-  # Test Baidu conversions
-  expect_equal(convert_style_to_provider("streets", "baidu"), "normal")
-  
-  # Test unknown provider
-  expect_equal(convert_style_to_provider("streets", "unknown"), "streets")
-})
-
-test_that("check_provider_feature_support works correctly", {
-  # Clear registry for clean test
-  registry <- get_provider_registry()
-  registry$clear_registry()
-  
-  # Test with unregistered provider
-  expect_false(check_provider_feature_support("unregistered", "feature1"))
-  
-  # Register a mock provider with capabilities
-  MockProvider <- R6::R6Class(
-    "MockProvider",
-    inherit = IMapProvider,
-    public = list(
-      initialize = function(config = list()) invisible(self),
-      validate_config = function(config) list(valid = TRUE, errors = character(0))
-    )
+  # Test missing columns
+  expect_error(
+    standardize_coordinates(df, "missing_col", "latitude"),
+    "Longitude column 'missing_col' not found"
   )
-  registry$register_provider("test_provider", MockProvider, c("feature1", "feature2"))
   
-  expect_true(check_provider_feature_support("test_provider", "feature1"))
-  expect_true(check_provider_feature_support("test_provider", "feature2"))
-  expect_false(check_provider_feature_support("test_provider", "feature3"))
+  # Test invalid coordinate values
+  df_invalid <- data.frame(
+    longitude = c(-200, 200),  # Invalid longitude
+    latitude = c(40.7, 40.8)
+  )
+  
+  expect_warning(
+    standardize_coordinates(df_invalid),
+    "longitude values are outside valid range"
+  )
+  
+  # Test NA values
+  df_na <- data.frame(
+    longitude = c(-74.0, NA),
+    latitude = c(40.7, 40.8)
+  )
+  
+  expect_warning(
+    standardize_coordinates(df_na),
+    "Coordinate data contains NA values"
+  )
+  
+  # Test non-numeric coordinates
+  df_char <- data.frame(
+    longitude = c("a", "b"),
+    latitude = c(40.7, 40.8)
+  )
+  
+  expect_error(
+    standardize_coordinates(df_char),
+    "Coordinate columns must contain numeric values"
+  )
 })

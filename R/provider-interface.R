@@ -118,7 +118,7 @@ IMapProvider <- R6::R6Class("IMapProvider",
     
     #' Get Provider Capabilities
     #'
-    #' Get list of capabilities supported by this provider.
+    #' Get the capabilities supported by this provider.
     #'
     #' @return List of supported capabilities
     get_capabilities = function() {
@@ -160,8 +160,8 @@ validate_provider_interface <- function(provider_class) {
   missing_methods <- setdiff(required_methods, class_methods)
   
   if (length(missing_methods) > 0) {
-    warning(paste("Provider missing required methods:", 
-                  paste(missing_methods, collapse = ", ")))
+    warning("Provider class missing required methods: ", 
+            paste(missing_methods, collapse = ", "))
     return(FALSE)
   }
   
