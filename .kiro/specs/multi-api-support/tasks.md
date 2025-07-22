@@ -85,7 +85,8 @@
     - Write integration tests for enhanced Mapbox features
     - _Requirements: 2.1, 2.6_
 
-- [-] 5. Implement Leaflet provider
+- [x] 5. Implement Leaflet provider
+
 
 
   - [x] 5.1 Create Leaflet provider implementation
@@ -97,7 +98,8 @@
     - Create JavaScript adapter for Leaflet-deck.gl integration
     - _Requirements: 1.3, 2.2_
 
-  - [-] 5.2 Add Leaflet provider features and testing
+  - [x] 5.2 Add Leaflet provider features and testing
+
 
     - Implement provider-specific configuration options
     - Add support for Leaflet tile providers and styling
@@ -158,6 +160,7 @@
     - _Requirements: 2.6, 2.7_
 
 - [ ] 9. Implement spatial sampling engine core
+
   - [ ] 9.1 Create basic spatial sampling functions
     - Write SamplingEngine class with GPU acceleration support
     - Implement spatial_sample_random() function with GPU optimization

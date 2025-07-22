@@ -162,6 +162,155 @@ test_that("LeafletProvider can be destroyed", {
   expect_null(provider$current_style)
 })
 
+test_that("LeafletProvider enhanced features work correctly", {
+  provider <- LeafletProvider$new()
+  provider$initialize_provider(list())
+  
+  # Test get_tile_provider_config
+  config <- provider$get_tile_provider_config("OpenStreetMap")
+  expect_true(is.list(config))
+  expect_true("url" %in% names(config))
+  expect_true("attribution" %in% names(config))
+  expect_false(config$requires_api_key)
+  
+  # Test unknown provider config
+  unknown_config <- provider$get_tile_provider_config("UnknownProvider")
+  expect_true(is.list(unknown_config))
+  expect_null(unknown_config$url)
+  
+  # Test create_custom_tile_layer
+  custom_layer <- provider$create_custom_tile_layer(
+    url = "https://example.com/{z}/{x}/{y}.png",
+    attribution = "Custom tiles",
+    max_zoom = 15,
+    min_zoom = 2
+  )
+  
+  expect_equal(custom_layer$url, "https://example.com/{z}/{x}/{y}.png")
+  expect_equal(custom_layer$attribution, "Custom tiles")
+  expect_equal(custom_layer$max_zoom, 15)
+  expect_equal(custom_layer$min_zoom, 2)
+  expect_false(custom_layer$requires_api_key)
+  
+  # Test set_tile_provider_options
+  provider$set_tile_provider_options(list(max_zoom = 16, detect_retina = FALSE))
+  expect_equal(provider$leaflet_config$max_zoom, 16)
+  expect_false(provider$leaflet_config$detect_retina)
+})
+
+test_that("LeafletProvider custom tile layer validation works", {
+  provider <- LeafletProvider$new()
+  
+  # Test invalid URL
+  expect_error(
+    provider$create_custom_tile_layer("not-a-url"),
+    "URL must start with http"
+  )
+  
+  # Test missing placeholders
+  expect_error(
+    provider$create_custom_tile_layer("https://example.com/tile.png"),
+    "URL must contain \\{z\\}, \\{x\\}, and \\{y\\} placeholders"
+  )
+  
+  # Test invalid zoom levels
+  expect_error(
+    provider$create_custom_tile_layer(
+      "https://example.com/{z}/{x}/{y}.png",
+      max_zoom = 25
+    ),
+    "max_zoom must be a single numeric value between 1 and 20"
+  )
+  
+  expect_error(
+    provider$create_custom_tile_layer(
+      "https://example.com/{z}/{x}/{y}.png",
+      min_zoom = 15,
+      max_zoom = 10
+    ),
+    "min_zoom must be a single numeric value between 0 and max_zoom"
+  )
+})
+
+test_that("LeafletProvider enhanced get_available_styles works", {
+  provider <- LeafletProvider$new()
+  
+  # Test basic styles (no API key required)
+  basic_styles <- provider$get_available_styles("basic")
+  expect_true("OpenStreetMap" %in% basic_styles)
+  expect_true(length(basic_styles) > 0)
+  
+  # Test with API key required providers
+  terrain_styles_basic <- provider$get_available_styles("terrain", include_api_key_required = FALSE)
+  terrain_styles_full <- provider$get_available_styles("terrain", include_api_key_required = TRUE)
+  
+  expect_true(length(terrain_styles_full) >= length(terrain_styles_basic))
+  expect_true("Thunderforest.Landscape" %in% terrain_styles_full)
+  
+  # Test all styles
+  all_styles <- provider$get_available_styles()
+  expect_true(length(all_styles) > 10)
+  expect_true("OpenStreetMap" %in% all_styles)
+  expect_true("CartoDB.Positron" %in% all_styles)
+})
+
+test_that("LeafletProvider integration with deck.gl layers", {
+  provider <- LeafletProvider$new()
+  provider$initialize_provider(list())
+  
+  # Test adding multiple layers
+  layer1 <- list(
+    id = "scatterplot_layer",
+    type = "ScatterplotLayer",
+    data = data.frame(longitude = c(-74, -73), latitude = c(40.7, 40.8))
+  )
+  
+  layer2 <- list(
+    id = "arc_layer", 
+    type = "ArcLayer",
+    data = data.frame(
+      source_lng = -74, source_lat = 40.7,
+      target_lng = -73, target_lat = 40.8
+    )
+  )
+  
+  provider$add_layer(layer1)
+  provider$add_layer(layer2)
+  
+  expect_equal(length(provider$layers), 2)
+  expect_true("scatterplot_layer" %in% names(provider$layers))
+  expect_true("arc_layer" %in% names(provider$layers))
+  
+  # Test removing specific layer
+  provider$remove_layer("scatterplot_layer")
+  expect_equal(length(provider$layers), 1)
+  expect_false("scatterplot_layer" %in% names(provider$layers))
+  expect_true("arc_layer" %in% names(provider$layers))
+})
+
+test_that("LeafletProvider error handling works correctly", {
+  provider <- LeafletProvider$new()
+  
+  # Test operations before initialization
+  expect_error(provider$create_map(), "Provider must be initialized")
+  expect_error(provider$update_style("new_style"), "Provider must be initialized")
+  expect_error(provider$add_layer(list()), "Provider must be initialized")
+  expect_error(provider$remove_layer("test"), "Provider must be initialized")
+  expect_error(provider$set_view(0, 0, 10), "Provider must be initialized")
+  
+  # Initialize for further tests
+  provider$initialize_provider(list())
+  
+  # Test invalid layer ID
+  expect_error(provider$remove_layer(c("id1", "id2")), "Layer ID must be a single character string")
+  
+  # Test invalid tile provider options
+  expect_error(provider$set_tile_provider_options("not_a_list"), "Options must be a list")
+  
+  # Test warning for unknown options
+  expect_warning(provider$set_tile_provider_options(list(unknown_option = "value")))
+})
+
 test_that("normalize_leaflet_tile_provider works correctly", {
   # Test aliases
   expect_equal(normalize_leaflet_tile_provider("osm"), "OpenStreetMap")

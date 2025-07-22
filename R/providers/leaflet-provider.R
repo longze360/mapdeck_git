@@ -344,11 +344,12 @@ LeafletProvider <- R6::R6Class("LeafletProvider",
     
     #' Get Available Styles
     #'
-    #' Get list of available Leaflet tile providers.
+    #' Get list of available Leaflet tile providers with enhanced categorization.
     #'
     #' @param category Character string to filter by category (optional)
-    #' @return Character vector of available tile provider names
-    get_available_styles = function(category = NULL) {
+    #' @param include_api_key_required Logical indicating if providers requiring API keys should be included
+    #' @return Character vector of available tile provider names or named list if categorized
+    get_available_styles = function(category = NULL, include_api_key_required = FALSE) {
       styles <- list(
         "basic" = c(
           "OpenStreetMap",
@@ -365,13 +366,9 @@ LeafletProvider <- R6::R6Class("LeafletProvider",
         ),
         "terrain" = c(
           "OpenTopoMap",
-          "Esri.WorldTopoMap",
-          "Thunderforest.Landscape",
-          "Thunderforest.Outdoors"
+          "Esri.WorldTopoMap"
         ),
         "transport" = c(
-          "Thunderforest.Transport",
-          "Thunderforest.TransportDark",
           "OpenMapSurfer.Roads"
         ),
         "specialty" = c(
@@ -385,6 +382,16 @@ LeafletProvider <- R6::R6Class("LeafletProvider",
         )
       )
       
+      # Add API key required providers if requested
+      if (include_api_key_required) {
+        styles$terrain <- c(styles$terrain, 
+                           "Thunderforest.Landscape",
+                           "Thunderforest.Outdoors")
+        styles$transport <- c(styles$transport,
+                             "Thunderforest.Transport",
+                             "Thunderforest.TransportDark")
+      }
+      
       if (is.null(category)) {
         return(unlist(styles, use.names = FALSE))
       } else {
@@ -395,6 +402,132 @@ LeafletProvider <- R6::R6Class("LeafletProvider",
           return(character(0))
         }
       }
+    },
+    
+    #' Get Tile Provider Configuration
+    #'
+    #' Get detailed configuration for a specific tile provider.
+    #'
+    #' @param provider_name Character string identifying the tile provider
+    #' @return List containing provider configuration details
+    get_tile_provider_config = function(provider_name) {
+      if (!is.character(provider_name) || length(provider_name) != 1) {
+        stop("Provider name must be a single character string")
+      }
+      
+      # Detailed tile provider configurations
+      configs <- list(
+        "OpenStreetMap" = list(
+          url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          attribution = "© OpenStreetMap contributors",
+          max_zoom = 19,
+          requires_api_key = FALSE
+        ),
+        "CartoDB.Positron" = list(
+          url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+          attribution = "© OpenStreetMap contributors © CARTO",
+          max_zoom = 19,
+          requires_api_key = FALSE
+        ),
+        "CartoDB.DarkMatter" = list(
+          url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          attribution = "© OpenStreetMap contributors © CARTO",
+          max_zoom = 19,
+          requires_api_key = FALSE
+        ),
+        "Esri.WorldImagery" = list(
+          url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attribution = "Tiles © Esri",
+          max_zoom = 18,
+          requires_api_key = FALSE
+        ),
+        "Thunderforest.Landscape" = list(
+          url = "https://{s}.tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey={apikey}",
+          attribution = "© Thunderforest, © OpenStreetMap contributors",
+          max_zoom = 18,
+          requires_api_key = TRUE
+        )
+      )
+      
+      if (provider_name %in% names(configs)) {
+        return(configs[[provider_name]])
+      } else {
+        # Return basic configuration for unknown providers
+        return(list(
+          url = NULL,
+          attribution = "",
+          max_zoom = 18,
+          requires_api_key = FALSE
+        ))
+      }
+    },
+    
+    #' Create Custom Tile Layer
+    #'
+    #' Create a custom tile layer configuration.
+    #'
+    #' @param url Character string containing tile URL template
+    #' @param attribution Character string for attribution text
+    #' @param max_zoom Numeric maximum zoom level
+    #' @param min_zoom Numeric minimum zoom level
+    #' @param api_key Character string for API key (if required)
+    #' @return List containing custom tile layer configuration
+    create_custom_tile_layer = function(url, attribution = "", max_zoom = 18, 
+                                       min_zoom = 1, api_key = NULL) {
+      if (!is.character(url) || length(url) != 1 || nchar(url) == 0) {
+        stop("URL must be a single non-empty character string")
+      }
+      
+      if (!grepl("^https?://", url)) {
+        stop("URL must start with http:// or https://")
+      }
+      
+      if (!grepl("\\{z\\}", url) || !grepl("\\{x\\}", url) || !grepl("\\{y\\}", url)) {
+        stop("URL must contain {z}, {x}, and {y} placeholders")
+      }
+      
+      # Validate zoom levels
+      if (!is.numeric(max_zoom) || length(max_zoom) != 1 || max_zoom < 1 || max_zoom > 20) {
+        stop("max_zoom must be a single numeric value between 1 and 20")
+      }
+      
+      if (!is.numeric(min_zoom) || length(min_zoom) != 1 || min_zoom < 0 || min_zoom >= max_zoom) {
+        stop("min_zoom must be a single numeric value between 0 and max_zoom")
+      }
+      
+      config <- list(
+        url = url,
+        attribution = attribution,
+        max_zoom = max_zoom,
+        min_zoom = min_zoom,
+        requires_api_key = !is.null(api_key),
+        api_key = api_key
+      )
+      
+      return(config)
+    },
+    
+    #' Set Tile Provider Options
+    #'
+    #' Set advanced options for the current tile provider.
+    #'
+    #' @param options List containing tile provider options
+    #' @return Invisible self for method chaining
+    set_tile_provider_options = function(options) {
+      if (!is.list(options)) {
+        stop("Options must be a list")
+      }
+      
+      # Merge with existing configuration
+      for (key in names(options)) {
+        if (key %in% names(self$leaflet_config)) {
+          self$leaflet_config[[key]] <- options[[key]]
+        } else {
+          warning(sprintf("Unknown tile provider option: %s", key))
+        }
+      }
+      
+      invisible(self)
     },
     
     #' Validate Configuration
