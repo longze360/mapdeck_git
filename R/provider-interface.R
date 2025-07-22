@@ -7,56 +7,71 @@
 #' @name provider-interface
 NULL
 
-#' Abstract Map Provider Interface
+#' Base Provider Interface
 #'
-#' R6 class defining the interface that all map providers must implement.
+#' Abstract base class that defines the interface all map providers must implement.
 #' This ensures consistent behavior across different mapping backends.
 #'
-#' @field provider_name Character string identifying the provider
-#' @field provider_type Character string indicating provider type
+#' @description
+#' The IMapProvider class defines the contract that all map providers must follow.
+#' It includes methods for initialization, map creation, layer management, and cleanup.
+#'
+#' @field provider_name Character string identifying the provider type
 #' @field config List containing provider-specific configuration
-#' @field capabilities List of supported features and capabilities
+#' @field capabilities List of supported features and limitations
+#' @field initialized Logical indicating if provider is initialized
+#'
+#' @examples
+#' \donttest{
+#' # This is an abstract class - use concrete implementations like MapboxProvider
+#' # provider <- MapboxProvider$new()
+#' # provider$initialize(config = list(token = "your_token"))
+#' }
 #'
 #' @export
 IMapProvider <- R6::R6Class("IMapProvider",
   public = list(
+    #' @field provider_name Character string identifying the provider
     provider_name = NULL,
-    provider_type = NULL,
+    
+    #' @field config Provider configuration list
     config = NULL,
+    
+    #' @field capabilities List of supported features
     capabilities = NULL,
+    
+    #' @field initialized Logical indicating initialization status
+    initialized = FALSE,
     
     #' Initialize Provider
     #'
     #' Initialize the map provider with configuration settings.
     #'
     #' @param config List containing provider-specific configuration
-    #'
     #' @return Invisible self for method chaining
     initialize = function(config = list()) {
-      stop("initialize() must be implemented by provider subclass")
+      stop("initialize() must be implemented by concrete provider classes")
     },
     
     #' Create Map Instance
     #'
-    #' Create a new map instance with the specified container and options.
+    #' Create a new map instance with specified options.
     #'
     #' @param container Character string identifying the HTML container
     #' @param options List of map initialization options
-    #'
     #' @return Map instance object
     create_map = function(container, options = list()) {
-      stop("create_map() must be implemented by provider subclass")
+      stop("create_map() must be implemented by concrete provider classes")
     },
     
     #' Update Map Style
     #'
-    #' Update the map style to the specified style.
+    #' Update the map style/theme.
     #'
-    #' @param style Character string or list specifying the map style
-    #'
+    #' @param style Character string or list specifying the new style
     #' @return Invisible self for method chaining
     update_style = function(style) {
-      stop("update_style() must be implemented by provider subclass")
+      stop("update_style() must be implemented by concrete provider classes")
     },
     
     #' Add Layer to Map
@@ -64,10 +79,9 @@ IMapProvider <- R6::R6Class("IMapProvider",
     #' Add a deck.gl layer to the map.
     #'
     #' @param layer List containing layer configuration
-    #'
     #' @return Invisible self for method chaining
     add_layer = function(layer) {
-      stop("add_layer() must be implemented by provider subclass")
+      stop("add_layer() must be implemented by concrete provider classes")
     },
     
     #' Remove Layer from Map
@@ -75,25 +89,23 @@ IMapProvider <- R6::R6Class("IMapProvider",
     #' Remove a layer from the map by its ID.
     #'
     #' @param layer_id Character string identifying the layer to remove
-    #'
     #' @return Invisible self for method chaining
     remove_layer = function(layer_id) {
-      stop("remove_layer() must be implemented by provider subclass")
+      stop("remove_layer() must be implemented by concrete provider classes")
     },
     
     #' Set Map View
     #'
-    #' Set the map view to the specified location and parameters.
+    #' Set the map view state (location, zoom, pitch, bearing).
     #'
     #' @param longitude Numeric longitude coordinate
     #' @param latitude Numeric latitude coordinate
     #' @param zoom Numeric zoom level
-    #' @param pitch Numeric pitch angle (optional)
-    #' @param bearing Numeric bearing angle (optional)
-    #'
+    #' @param pitch Numeric pitch angle (0-60 degrees)
+    #' @param bearing Numeric bearing angle (0-360 degrees)
     #' @return Invisible self for method chaining
     set_view = function(longitude, latitude, zoom, pitch = 0, bearing = 0) {
-      stop("set_view() must be implemented by provider subclass")
+      stop("set_view() must be implemented by concrete provider classes")
     },
     
     #' Get Available Styles
@@ -102,58 +114,72 @@ IMapProvider <- R6::R6Class("IMapProvider",
     #'
     #' @return Character vector of available style names
     get_available_styles = function() {
-      stop("get_available_styles() must be implemented by provider subclass")
+      stop("get_available_styles() must be implemented by concrete provider classes")
     },
     
     #' Validate Configuration
     #'
-    #' Validate provider-specific configuration settings.
+    #' Validate provider-specific configuration.
     #'
     #' @param config List containing configuration to validate
-    #'
     #' @return Logical indicating if configuration is valid
     validate_config = function(config) {
-      stop("validate_config() must be implemented by provider subclass")
+      stop("validate_config() must be implemented by concrete provider classes")
+    },
+    
+    #' Destroy Provider
+    #'
+    #' Clean up resources and destroy the provider instance.
+    #'
+    #' @return Invisible NULL
+    destroy = function() {
+      stop("destroy() must be implemented by concrete provider classes")
     },
     
     #' Get Provider Capabilities
     #'
-    #' Get the capabilities supported by this provider.
+    #' Get the capabilities and limitations of this provider.
     #'
-    #' @return List of supported capabilities
+    #' @return List containing capability information
     get_capabilities = function() {
       return(self$capabilities)
     },
     
-    #' Destroy Map Instance
+    #' Check if Provider is Initialized
     #'
-    #' Clean up and destroy the map instance.
+    #' Check if the provider has been properly initialized.
     #'
-    #' @return Invisible self
-    destroy = function() {
-      stop("destroy() must be implemented by provider subclass")
+    #' @return Logical indicating initialization status
+    is_initialized = function() {
+      return(self$initialized)
     }
   )
 )
 
 #' Validate Provider Interface Implementation
 #'
-#' Validates that a provider class properly implements the IMapProvider interface.
+#' Utility function to validate that a provider class properly implements
+#' the IMapProvider interface.
 #'
-#' @param provider_class R6 class to validate
+#' @param provider_class R6 class object to validate
+#' @return Logical indicating if implementation is valid
 #'
-#' @return Logical indicating if the provider implements the interface correctly
+#' @examples
+#' \donttest{
+#' # Validate a provider implementation
+#' # is_valid <- validate_provider_interface(MapboxProvider)
+#' }
 #'
 #' @export
 validate_provider_interface <- function(provider_class) {
-  if (!R6::is.R6Class(provider_class)) {
+  if (!inherits(provider_class, "R6ClassGenerator")) {
     return(FALSE)
   }
   
   required_methods <- c(
-    "initialize", "create_map", "update_style", "add_layer", 
-    "remove_layer", "set_view", "get_available_styles", 
-    "validate_config", "get_capabilities", "destroy"
+    "initialize", "create_map", "update_style", "add_layer",
+    "remove_layer", "set_view", "get_available_styles",
+    "validate_config", "destroy"
   )
   
   class_methods <- names(provider_class$public_methods)
