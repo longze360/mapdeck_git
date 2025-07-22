@@ -846,11 +846,132 @@ spatial_sample_grid <- function(data, grid_size, bounds = NULL,
 #'
 #' @param data Spatial data (sf object or data.frame with coordinates)
 #' @param strata_column Character name of column for stratification
-#' @param n_per_stratum Integer samples per stratum or named vector/list
-#'   specifying samples for each stratum
+#' @param n_per_stratum Integer samples per stratum or named vector
 #' @param bounds Optional bounding box as c(xmin, ymin, xmax, ymax)
 #' @param seed Optional random seed for reproducibility
 #' @param engine Optional SamplingEngine instance (created if NULL)
+#'
+#' @return Stratified sampled spatial data
+#'
+#' @examples
+#' \donttest{
+#' # Stratified sampling
+#' library(sf)
+#' data(melbourne, package = "mapdeck")
+#' melbourne$category <- sample(c("A", "B", "C"), nrow(melbourne), replace = TRUE)
+#' stratified_samples <- spatial_sample_stratified(melbourne, 
+#'                                                  strata_column = "category",
+#'                                                  n_per_stratum = 10)
+#' 
+#' # Stratified sampling with different samples per stratum
+#' n_per_stratum <- c("A" = 15, "B" = 10, "C" = 5)
+#' custom_stratified <- spatial_sample_stratified(melbourne, 
+#'                                                 strata_column = "category",
+#'                                                 n_per_stratum = n_per_stratum)
+#' }
+#'
+#' @export
+spatial_sample_stratified <- function(data, strata_column, n_per_stratum, 
+                                      bounds = NULL, seed = NULL, engine = NULL) {
+  # Create engine if not provided
+  if (is.null(engine)) {
+    engine <- SamplingEngine$new()
+    engine$initialize()
+  }
+  
+  # Perform sampling
+  return(engine$spatial_sample_stratified(data, strata_column, n_per_stratum, 
+                                           bounds, seed))
+}
+
+#' Administrative Boundary Sampling
+#'
+#' Perform spatial sampling within administrative boundaries with support for
+#' different allocation strategies.
+#'
+#' @param admin_polygons sf object with administrative polygons
+#' @param total_samples Integer total number of samples to generate
+#' @param allocation_method Method for allocating samples: "proportional", 
+#'   "equal", or "custom"
+#' @param weight_column Column name for custom weights (required for "custom")
+#' @param admin_column Column name for administrative unit identifiers
+#' @param concurrent Logical indicating if concurrent processing should be used
+#' @param use_gpu Logical indicating if GPU acceleration should be used
+#' @param seed Optional random seed for reproducibility
+#'
+#' @return sf object with sampled points including administrative unit info
+#'
+#' @examples
+#' \donttest{
+#' # Load administrative boundaries (example with mock data)
+#' library(sf)
+#' 
+#' # Create mock administrative polygons
+#' admin_bounds <- data.frame(
+#'   admin_id = c("A", "B", "C"),
+#'   area = c(100, 200, 150)
+#' )
+#' 
+#' # Convert to sf polygons (simplified example)
+#' coords_list <- list(
+#'   matrix(c(0,0, 1,0, 1,1, 0,1, 0,0), ncol=2, byrow=TRUE),
+#'   matrix(c(1,0, 3,0, 3,2, 1,2, 1,0), ncol=2, byrow=TRUE),
+#'   matrix(c(0,1, 2,1, 2,2.5, 0,2.5, 0,1), ncol=2, byrow=TRUE)
+#' )
+#' 
+#' polygons <- lapply(coords_list, function(x) st_polygon(list(x)))
+#' admin_sf <- st_sf(admin_bounds, geometry = st_sfc(polygons))
+#' 
+#' # Proportional allocation (default)
+#' prop_samples <- spatial_sample_administrative(admin_sf, total_samples = 100)
+#' 
+#' # Equal allocation
+#' equal_samples <- spatial_sample_administrative(admin_sf, 
+#'                                                total_samples = 90,
+#'                                                allocation_method = "equal")
+#' 
+#' # Custom allocation based on area column
+#' custom_samples <- spatial_sample_administrative(admin_sf, 
+#'                                                 total_samples = 120,
+#'                                                 allocation_method = "custom",
+#'                                                 weight_column = "area")
+#' }
+#'
+#' @export
+spatial_sample_administrative <- function(admin_polygons, total_samples,
+                                          allocation_method = "proportional",
+                                          weight_column = NULL,
+                                          admin_column = NULL,
+                                          concurrent = FALSE,
+                                          use_gpu = TRUE,
+                                          seed = NULL) {
+  # Load administrative sampler
+  if (!exists("AdministrativeSampler")) {
+    source("R/spatial-sampling/administrative-sampler.R", local = TRUE)
+  }
+  
+  # Create administrative sampler
+  config <- list(
+    allocation_method = allocation_method,
+    concurrent = concurrent,
+    use_gpu = use_gpu
+  )
+  
+  sampler <- AdministrativeSampler$new()
+  sampler$initialize(config)
+  
+  # Perform administrative sampling
+  return(sampler$sample_administrative(
+    admin_polygons = admin_polygons,
+    total_samples = total_samples,
+    allocation_method = allocation_method,
+    weight_column = weight_column,
+    admin_column = admin_column,
+    concurrent = concurrent,
+    use_gpu = use_gpu,
+    seed = seed
+  ))
+}
 #'
 #' @return Stratified sampled spatial data
 #'
