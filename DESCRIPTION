@@ -23,6 +23,7 @@ Imports:
     htmlwidgets,
     jsonify (>= 1.2.2),
     magrittr,
+    R6,
     Rcpp (>= 1.0.14),
     shiny,
     sfheaders (>= 0.4.4)
