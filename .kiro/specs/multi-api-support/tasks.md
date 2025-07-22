@@ -89,6 +89,7 @@
 
 
 
+
   - [x] 5.1 Create Leaflet provider implementation
 
 
@@ -159,16 +160,25 @@
     - Create integration tests for style consistency across providers
     - _Requirements: 2.6, 2.7_
 
-- [ ] 9. Implement spatial sampling engine core
+- [x] 9. Implement spatial sampling engine core
 
-  - [ ] 9.1 Create basic spatial sampling functions
+
+
+
+
+  - [x] 9.1 Create basic spatial sampling functions
+
+
+
     - Write SamplingEngine class with GPU acceleration support
     - Implement spatial_sample_random() function with GPU optimization
     - Create spatial_sample_grid() function for regular grid sampling
     - Write spatial_sample_stratified() function with GPU support
     - _Requirements: 7.1, 7.2, 7.3, 7.8_
 
-  - [ ] 9.2 Add GPU acceleration and fallback mechanisms
+
+  - [x] 9.2 Add GPU acceleration and fallback mechanisms
+
     - Implement WebGL-based GPU compute shaders for sampling operations
     - Create CPU fallback mechanisms when GPU is unavailable
     - Add performance monitoring and GPU vs CPU benchmarking
@@ -176,6 +186,13 @@
     - _Requirements: 7.8, 7.9, 7.11_
 
 - [ ] 10. Implement administrative boundary sampling
+
+
+
+
+
+
+
   - [ ] 10.1 Create administrative sampling engine
     - Write AdministrativeSampler class for boundary-based sampling
     - Implement spatial_sample_administrative() function with proportional allocation
