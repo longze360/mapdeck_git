@@ -85,12 +85,12 @@ example_regions <- create_example_regions()
 cat("行政区域基本信息:\n")
 print(example_regions[, c("region_name", "population", "disease_cases")])
 
-# 1.1 人口比例抽样 - 每1000人抽取1个样本
-cat("\n1.1 人口比例抽样 (1:1000):\n")
+# 1.1 人口比例抽样 - 每1000人抽取1个样本 (ratio = 0.001)
+cat("\n1.1 人口比例抽样 (ratio = 0.001, 即 1:1000):\n")
 population_samples <- spatial_sample_population(
   example_regions,
   population_column = "population", 
-  ratio_string = "1:1000",
+  ratio = 0.001,
   min_samples = 1,
   max_samples = 100,
   seed = 2024
@@ -101,7 +101,7 @@ pop_counts <- table(population_samples$region_name)
 cat("各区域样本数:\n")
 for (region in names(pop_counts)) {
   pop <- example_regions$population[example_regions$region_name == region]
-  expected <- round(pop / 1000)
+  expected <- round(pop * 0.001)
   actual <- pop_counts[[region]]
   cat(sprintf("  %s: %d个样本 (人口: %d, 预期: %d)\n", 
               region, actual, pop, expected))
@@ -113,12 +113,12 @@ for (region in names(pop_counts)) {
 
 cat("\n=== 示例2: 病例比例抽样 ===\n")
 
-# 2.1 疾病病例抽样 - 每10个病例抽取1个样本
-cat("\n2.1 疾病病例抽样 (1:10):\n")
+# 2.1 疾病病例抽样 - 每10个病例抽取1个样本 (ratio = 0.1)
+cat("\n2.1 疾病病例抽样 (ratio = 0.1, 即 1:10):\n")
 case_samples <- spatial_sample_cases(
   example_regions,
   case_column = "disease_cases",
-  ratio_string = "1:10", 
+  ratio = 0.1, 
   min_samples = 1,
   max_samples = 50,
   seed = 2024
@@ -129,7 +129,7 @@ case_counts <- table(case_samples$region_name)
 cat("各区域样本数:\n")
 for (region in names(case_counts)) {
   cases <- example_regions$disease_cases[example_regions$region_name == region]
-  expected <- round(cases / 10)
+  expected <- round(cases * 0.1)
   actual <- case_counts[[region]]
   cat(sprintf("  %s: %d个样本 (病例: %d, 预期: %d)\n",
               region, actual, cases, expected))
@@ -141,11 +141,12 @@ for (region in names(case_counts)) {
 
 cat("\n=== 示例3: 不同比例的对比 ===\n")
 
-ratios <- c("1:500", "1:1000", "1:2000", "1:5000")
+ratios <- c(0.002, 0.001, 0.0005, 0.0002)  # 对应 1:500, 1:1000, 1:2000, 1:5000
+ratio_labels <- c("1:500", "1:1000", "1:2000", "1:5000")
 cat("人口抽样不同比例对比:\n")
 cat(sprintf("%-12s", "区域名称"))
-for (ratio in ratios) {
-  cat(sprintf("%-8s", ratio))
+for (label in ratio_labels) {
+  cat(sprintf("%-8s", label))
 }
 cat("\n")
 
@@ -155,11 +156,11 @@ for (i in seq_len(nrow(example_regions))) {
   
   cat(sprintf("%-12s", substr(region, 1, 10)))
   
-  for (ratio in ratios) {
+  for (j in seq_along(ratios)) {
     samples <- spatial_sample_population(
       example_regions[i, ],
       population_column = "population",
-      ratio_string = ratio,
+      ratio = ratios[j],
       seed = 2024
     )
     cat(sprintf("%-8d", nrow(samples)))
@@ -178,7 +179,7 @@ cat("\n4.1 带约束的人口抽样:\n")
 constrained_samples <- spatial_sample_population(
   example_regions,
   population_column = "population",
-  ratio_string = "1:10000",  # 很小的比例
+  ratio = 0.0001,  # 很小的比例 (1:10000)
   min_samples = 3,           # 每个区域至少3个样本
   max_samples = 20,          # 每个区域最多20个样本
   seed = 2024
@@ -188,7 +189,7 @@ constrained_counts <- table(constrained_samples$region_name)
 cat("约束抽样结果 (min=3, max=20):\n")
 for (region in names(constrained_counts)) {
   population <- example_regions$population[example_regions$region_name == region]
-  raw_expected <- population / 10000
+  raw_expected <- population * 0.0001
   actual <- constrained_counts[[region]]
   cat(sprintf("  %s: %d个样本 (原始期望: %.1f, 约束后: %d)\n",
               region, actual, raw_expected, actual))
@@ -210,7 +211,6 @@ cat("人口抽样摘要统计:\n")
 cat(sprintf("  总样本数: %d\n", summary_stats$total_samples))
 cat(sprintf("  抽样区域数: %d\n", summary_stats$regions_sampled))
 cat(sprintf("  抽样比例: %.4f\n", summary_stats$sampling_ratio))
-cat(sprintf("  比例字符串: %s\n", summary_stats$ratio_string))
 
 if (!is.null(summary_stats$efficiency)) {
   cat("抽样效率:\n")
@@ -258,7 +258,7 @@ cat("场景: 某地区爆发传染病，需要按病例数比例进行流行病�
 epi_samples <- spatial_sample_cases(
   example_regions,
   case_column = "disease_cases",
-  ratio_string = "1:5",  # 每5个病例调查1个
+  ratio = 0.2,  # 每5个病例调查1个 (1:5)
   min_samples = 2,       # 每个区域至少调查2个
   seed = 2024
 )
@@ -286,7 +286,7 @@ cat("场景: 进行人口普查前的预调查，按人口比例抽样\n")
 census_samples <- spatial_sample_population(
   example_regions,
   population_column = "population",
-  ratio_string = "1:2000",  # 每2000人抽查1个
+  ratio = 0.0005,  # 每2000人抽查1个 (1:2000)
   min_samples = 2,
   max_samples = 50,
   seed = 2024
@@ -303,11 +303,73 @@ cat(sprintf("  抽样比例: 1:%.0f\n", total_population / total_census_samples)
 for (region in names(census_counts)) {
   population <- example_regions$population[example_regions$region_name == region]
   samples <- census_counts[[region]]
-  ratio <- population / samples
+  ratio_actual <- population / samples
   cat(sprintf("  %s: %d样本/%d人口 (比例: 1:%.0f)\n",
-              region, samples, population, ratio))
+              region, samples, population, ratio_actual))
+}
+
+# ============================================================================
+# 示例7: 高级比例抽样 (Advanced Ratio Sampling)
+# ============================================================================
+
+cat("\n=== 示例7: 高级比例抽样 ===\n")
+
+# 7.1 高比例抽样 (2:1 比例)
+cat("\n7.1 高比例抽样 (ratio = 2.0, 即 2:1):\n")
+high_ratio_samples <- spatial_sample_proportional(
+  example_regions,
+  variable_column = "disease_cases",
+  ratio = 2.0,  # 每个病例抽取2个样本
+  max_samples = 50,  # 限制最大样本数
+  seed = 2024
+)
+
+high_ratio_counts <- table(high_ratio_samples$region_name)
+cat("高比例抽样结果:\n")
+for (region in names(high_ratio_counts)) {
+  cases <- example_regions$disease_cases[example_regions$region_name == region]
+  samples <- high_ratio_counts[[region]]
+  expected <- min(50, cases * 2)  # 考虑最大样本数限制
+  cat(sprintf("  %s: %d样本/%d病例 (预期: %d)\n",
+              region, samples, cases, expected))
+}
+
+# 7.2 精确小比例抽样
+cat("\n7.2 精确小比例抽样 (ratio = 0.005, 即 1:200):\n")
+precise_samples <- spatial_sample_proportional(
+  example_regions,
+  variable_column = "population",
+  ratio = 0.005,  # 每200人抽取1个样本
+  min_samples = 1,
+  seed = 2024
+)
+
+precise_counts <- table(precise_samples$region_name)
+cat("精确小比例抽样结果:\n")
+for (region in names(precise_counts)) {
+  population <- example_regions$population[example_regions$region_name == region]
+  samples <- precise_counts[[region]]
+  expected <- round(population * 0.005)
+  actual_ratio <- population / samples
+  cat(sprintf("  %s: %d样本/%d人口 (预期: %d, 实际比例: 1:%.0f)\n",
+              region, samples, population, expected, actual_ratio))
 }
 
 cat("\n=== 所有示例完成 ===\n")
-cat("提示: 这些示例展示了按比例抽样在实际应用中的灵活性和准确性\n")
-cat("Tip: These examples demonstrate the flexibility and accuracy of proportional sampling in real applications\n")
+cat("提示: 这些示例展示了使用数值比例参数进行按比例抽样的灵活性和准确性\n")
+cat("Tip: These examples demonstrate the flexibility and accuracy of proportional sampling using numeric ratio parameters\n")
+
+# ============================================================================
+# 比例参数说明 (Ratio Parameter Explanation)
+# ============================================================================
+
+cat("\n=== 比例参数说明 ===\n")
+cat("数值比例参数对应关系:\n")
+cat("  ratio = 1.0   → 1:1   (每1个单位抽取1个样本)\n")
+cat("  ratio = 0.5   → 1:2   (每2个单位抽取1个样本)\n")
+cat("  ratio = 0.1   → 1:10  (每10个单位抽取1个样本)\n")
+cat("  ratio = 0.01  → 1:100 (每100个单位抽取1个样本)\n")
+cat("  ratio = 0.001 → 1:1000(每1000个单位抽取1个样本)\n")
+cat("  ratio = 2.0   → 2:1   (每1个单位抽取2个样本)\n")
+cat("  ratio = 0.2   → 1:5   (每5个单位抽取1个样本)\n")
+cat("\n使用数值比例参数更直观，便于计算和理解！\n")

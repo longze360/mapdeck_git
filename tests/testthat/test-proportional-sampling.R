@@ -61,29 +61,29 @@ test_that("spatial_sample_proportional works with different ratios", {
   # Create test data
   admin_data <- create_test_admin_polygons_with_variables()
   
-  # Test 1:10 ratio
-  samples_1_10 <- spatial_sample_proportional(
+  # Test 0.1 ratio (1:10)
+  samples_0_1 <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:10",
+    ratio = 0.1,
     seed = 123
   )
   
-  expect_s3_class(samples_1_10, "sf")
-  expect_true("admin_id" %in% names(samples_1_10))
-  expect_true("sampling_ratio" %in% names(samples_1_10))
-  expect_equal(unique(samples_1_10$sampling_ratio), 0.1)
+  expect_s3_class(samples_0_1, "sf")
+  expect_true("admin_id" %in% names(samples_0_1))
+  expect_true("sampling_ratio" %in% names(samples_0_1))
+  expect_equal(unique(samples_0_1$sampling_ratio), 0.1)
   
-  # Test 1:100 ratio
-  samples_1_100 <- spatial_sample_proportional(
+  # Test 0.01 ratio (1:100)
+  samples_0_01 <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:100",
+    ratio = 0.01,
     seed = 456
   )
   
-  expect_s3_class(samples_1_100, "sf")
-  expect_lt(nrow(samples_1_100), nrow(samples_1_10))  # Should have fewer samples
+  expect_s3_class(samples_0_01, "sf")
+  expect_lt(nrow(samples_0_01), nrow(samples_0_1))  # Should have fewer samples
 })
 
 test_that("population proportional sampling works correctly", {
@@ -93,7 +93,7 @@ test_that("population proportional sampling works correctly", {
   pop_samples <- spatial_sample_population(
     admin_data$polygons,
     population_column = "population",
-    ratio_string = "1:1000",
+    ratio = 0.001,
     seed = 789
   )
   
@@ -120,7 +120,7 @@ test_that("case proportional sampling works correctly", {
   case_samples <- spatial_sample_cases(
     admin_data$polygons,
     case_column = "cases",
-    ratio_string = "1:5",
+    ratio = 0.2,
     seed = 999
   )
   
@@ -147,7 +147,7 @@ test_that("min and max sample constraints work correctly", {
   constrained_samples <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "cases",
-    ratio_string = "1:1",  # Would normally give many samples
+    ratio = 1.0,  # Would normally give many samples
     min_samples = 2,
     max_samples = 5,
     seed = 111
@@ -167,7 +167,7 @@ test_that("sampling summary statistics work correctly", {
   samples <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:100",
+    ratio = 0.01,
     seed = 222
   )
   
@@ -180,12 +180,10 @@ test_that("sampling summary statistics work correctly", {
   expect_true("total_samples" %in% names(summary_stats))
   expect_true("regions_sampled" %in% names(summary_stats))
   expect_true("sampling_ratio" %in% names(summary_stats))
-  expect_true("ratio_string" %in% names(summary_stats))
   
   expect_equal(summary_stats$total_samples, nrow(samples))
   expect_equal(summary_stats$regions_sampled, length(unique(samples$admin_id)))
   expect_equal(summary_stats$sampling_ratio, 0.01)
-  expect_equal(summary_stats$ratio_string, "1:100")
 })
 
 test_that("error handling works correctly for proportional sampling", {
@@ -196,19 +194,9 @@ test_that("error handling works correctly for proportional sampling", {
     spatial_sample_proportional(
       admin_data$polygons,
       variable_column = "nonexistent",
-      ratio_string = "1:10"
+      ratio = 0.1
     ),
     "variable_column must be a valid column"
-  )
-  
-  # Test invalid ratio string
-  expect_error(
-    spatial_sample_proportional(
-      admin_data$polygons,
-      variable_column = "population",
-      ratio_string = "invalid"
-    ),
-    "ratio_string must be in format"
   )
   
   # Test negative sampling ratio
@@ -216,17 +204,19 @@ test_that("error handling works correctly for proportional sampling", {
     spatial_sample_proportional(
       admin_data$polygons,
       variable_column = "population",
-      ratio_string = "1:10"
-    ) %>% {
-      sampler <- ProportionalRegionalSampler$new()
-      sampler$initialize()
-      sampler$sample_by_ratio(
-        admin_data$polygons,
-        "population",
-        sampling_ratio = -0.1
-      )
-    },
-    "sampling_ratio must be a positive numeric value"
+      ratio = -0.1
+    ),
+    "ratio must be a positive numeric value"
+  )
+  
+  # Test zero ratio
+  expect_error(
+    spatial_sample_proportional(
+      admin_data$polygons,
+      variable_column = "population",
+      ratio = 0
+    ),
+    "ratio must be a positive numeric value"
   )
   
   # Test invalid min/max samples
@@ -234,7 +224,7 @@ test_that("error handling works correctly for proportional sampling", {
     spatial_sample_proportional(
       admin_data$polygons,
       variable_column = "population",
-      ratio_string = "1:10",
+      ratio = 0.1,
       min_samples = -1
     ),
     "min_samples must be a non-negative numeric value"
@@ -244,7 +234,7 @@ test_that("error handling works correctly for proportional sampling", {
     spatial_sample_proportional(
       admin_data$polygons,
       variable_column = "population", 
-      ratio_string = "1:10",
+      ratio = 0.1,
       min_samples = 10,
       max_samples = 5
     ),
@@ -258,7 +248,7 @@ test_that("proportional sampling maintains boundary accuracy", {
   samples <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:50",
+    ratio = 0.02,
     seed = 333
   )
   
@@ -288,14 +278,14 @@ test_that("proportional sampling is reproducible with seeds", {
   samples1 <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:100",
+    ratio = 0.01,
     seed = 444
   )
   
   samples2 <- spatial_sample_proportional(
     admin_data$polygons,
     variable_column = "population",
-    ratio_string = "1:100",
+    ratio = 0.01,
     seed = 444
   )
   
@@ -326,7 +316,7 @@ test_that("proportional sampling handles zero values correctly", {
   pop_samples <- spatial_sample_proportional(
     admin_sf,
     variable_column = "population",
-    ratio_string = "1:100",
+    ratio = 0.01,
     min_samples = 1,
     seed = 555
   )

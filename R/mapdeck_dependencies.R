@@ -249,3 +249,32 @@ leaflet_deckgl_adapter <- function() {
 	)
 }
 
+## OpenLayers.js dependencies
+## https://cdn.jsdelivr.net/npm/ol@v7.5.2/dist/ol.js
+## https://cdn.jsdelivr.net/npm/ol@v7.5.2/ol.css
+openlayers_js <- function() {
+	list(
+		createHtmlDependency(
+			name = "openlayers",
+			version = "7.5.2",
+			src = system.file("htmlwidgets/lib/openlayers/", package = "mapdeck"),
+			script = c("ol.js"),
+			stylesheet = c("ol.css"),
+			all_files = FALSE
+		)
+	)
+}
+
+## OpenLayers-deck.gl adapter
+openlayers_deckgl_adapter <- function() {
+	list(
+		createHtmlDependency(
+			name = "openlayers-deckgl-adapter",
+			version = "0.0.1",
+			src = system.file("htmlwidgets/lib/openlayers/", package = "mapdeck"),
+			script = c("openlayers-adapter.js"),
+			all_files = FALSE
+		)
+	)
+}
+

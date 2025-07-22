@@ -187,6 +187,12 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
           self$factories[[name]] <- MapboxProvider
         } else if (name == "leaflet") {
           self$factories[[name]] <- LeafletProvider
+        } else if (name == "openlayers") {
+          self$factories[[name]] <- OpenLayersProvider
+        } else if (name == "gaode") {
+          self$factories[[name]] <- GaodeProvider
+        } else if (name == "baidu") {
+          self$factories[[name]] <- BaiduProvider
         } else {
           # Placeholder factory - will be replaced when classes are implemented
           self$factories[[name]] <- NULL
