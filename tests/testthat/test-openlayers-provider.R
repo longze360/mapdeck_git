@@ -253,3 +253,201 @@ test_that("OpenLayersProvider integrates with provider factory", {
   expect_true(provider$initialized)
   expect_equal(provider$source_config, "OSM")
 })
+
+test_that("OpenLayersProvider can create WMS sources", {
+  provider <- OpenLayersProvider$new()
+  
+  # Create valid WMS source
+  wms_config <- provider$create_wms_source(
+    url = "https://example.com/wms",
+    layers = c("layer1", "layer2"),
+    version = "1.3.0",
+    format = "image/png",
+    transparent = TRUE,
+    attribution = "© Example WMS"
+  )
+  
+  expect_equal(wms_config$type, "WMS")
+  expect_equal(wms_config$url, "https://example.com/wms")
+  expect_equal(wms_config$layers, c("layer1", "layer2"))
+  expect_equal(wms_config$version, "1.3.0")
+  expect_equal(wms_config$format, "image/png")
+  expect_true(wms_config$transparent)
+  expect_equal(wms_config$params$LAYERS, "layer1,layer2")
+  expect_equal(wms_config$params$TRANSPARENT, "TRUE")
+  
+  # Test validation errors
+  expect_error(provider$create_wms_source("", c("layer1")))  # Empty URL
+  expect_error(provider$create_wms_source("https://example.com", character(0)))  # Empty layers
+  expect_error(provider$create_wms_source("ftp://example.com", c("layer1")))  # Invalid protocol
+})
+
+test_that("OpenLayersProvider can create WMTS sources", {
+  provider <- OpenLayersProvider$new()
+  
+  # Create valid WMTS source
+  wmts_config <- provider$create_wmts_source(
+    url = "https://example.com/wmts",
+    layer = "test_layer",
+    matrix_set = "EPSG:3857",
+    format = "image/png",
+    attribution = "© Example WMTS",
+    style = "default"
+  )
+  
+  expect_equal(wmts_config$type, "WMTS")
+  expect_equal(wmts_config$url, "https://example.com/wmts")
+  expect_equal(wmts_config$layer, "test_layer")
+  expect_equal(wmts_config$matrixSet, "EPSG:3857")
+  expect_equal(wmts_config$format, "image/png")
+  expect_equal(wmts_config$style, "default")
+  
+  # Test validation errors
+  expect_error(provider$create_wmts_source("", "layer", "matrix"))  # Empty URL
+  expect_error(provider$create_wmts_source("https://example.com", "", "matrix"))  # Empty layer
+  expect_error(provider$create_wmts_source("https://example.com", "layer", ""))  # Empty matrix set
+})
+
+test_that("OpenLayersProvider can create vector tile sources", {
+  provider <- OpenLayersProvider$new()
+  
+  # Create valid vector tile source
+  vector_config <- provider$create_vector_tile_source(
+    url = "https://example.com/{z}/{x}/{y}.pbf",
+    format = "MVT",
+    attribution = "© Example Vector",
+    max_zoom = 14,
+    min_zoom = 0
+  )
+  
+  expect_equal(vector_config$type, "VectorTile")
+  expect_equal(vector_config$url, "https://example.com/{z}/{x}/{y}.pbf")
+  expect_equal(vector_config$format, "MVT")
+  expect_equal(vector_config$max_zoom, 14)
+  expect_equal(vector_config$min_zoom, 0)
+  
+  # Test validation errors
+  expect_error(provider$create_vector_tile_source(""))  # Empty URL
+  expect_error(provider$create_vector_tile_source("ftp://example.com"))  # Invalid protocol
+  expect_error(provider$create_vector_tile_source("https://example.com"))  # Missing placeholders
+  expect_error(provider$create_vector_tile_source("https://example.com/{z}/{x}/{y}.pbf", max_zoom = 0))  # Invalid zoom
+})
+
+test_that("OpenLayersProvider handles projection information", {
+  provider <- OpenLayersProvider$new()
+  
+  # Get all projections
+  all_projections <- provider$get_projection_info()
+  expect_true(is.list(all_projections))
+  expect_true("EPSG:3857" %in% names(all_projections))
+  expect_true("EPSG:4326" %in% names(all_projections))
+  
+  # Get specific projection
+  web_mercator <- provider$get_projection_info("EPSG:3857")
+  expect_true(is.list(web_mercator))
+  expect_equal(web_mercator$name, "Web Mercator")
+  expect_equal(web_mercator$units, "m")
+  expect_true(web_mercator$global)
+  
+  # Test unknown projection
+  expect_warning(unknown_proj <- provider$get_projection_info("EPSG:9999"))
+  expect_null(unknown_proj)
+})
+
+test_that("OpenLayersProvider can set projections", {
+  provider <- OpenLayersProvider$new()
+  provider$initialize_provider(list())
+  
+  # Set known projection
+  provider$set_projection("EPSG:4326")
+  expect_equal(provider$openlayers_config$projection, "EPSG:4326")
+  expect_equal(provider$openlayers_config$extent, c(-180, -90, 180, 90))
+  
+  # Set projection with custom extent
+  custom_extent <- c(-10, -10, 10, 10)
+  provider$set_projection("EPSG:3857", custom_extent)
+  expect_equal(provider$openlayers_config$projection, "EPSG:3857")
+  expect_equal(provider$openlayers_config$extent, custom_extent)
+  
+  # Test validation errors
+  expect_error(provider$set_projection(123))  # Invalid projection type
+  expect_error(provider$set_projection("EPSG:3857", c(1, 2, 3)))  # Invalid extent length
+})
+
+test_that("OpenLayersProvider handles deck.gl layer compatibility", {
+  provider <- OpenLayersProvider$new()
+  provider$initialize_provider(list())
+  
+  # Test common deck.gl layer types
+  layer_types <- c(
+    "ScatterplotLayer",
+    "LineLayer", 
+    "PolygonLayer",
+    "ArcLayer",
+    "HexagonLayer",
+    "GridLayer",
+    "HeatmapLayer"
+  )
+  
+  for (layer_type in layer_types) {
+    layer_config <- list(
+      id = paste0("test_", tolower(layer_type)),
+      type = layer_type,
+      data = data.frame(lon = c(-74, -73), lat = c(40, 41))
+    )
+    
+    # Should not throw error
+    expect_silent(provider$add_layer(layer_config))
+    expect_true(layer_config$id %in% names(provider$layers))
+    
+    # Clean up
+    provider$remove_layer(layer_config$id)
+  }
+})
+
+test_that("OpenLayersProvider handles advanced configuration options", {
+  provider <- OpenLayersProvider$new()
+  
+  # Test advanced configuration
+  advanced_config <- list(
+    source = "CartoDB.Positron",
+    projection = "EPSG:3857",
+    enable_rotation = TRUE,
+    keyboard_pan = FALSE,
+    mouse_wheel_zoom = TRUE,
+    constrain_resolution = TRUE,
+    smooth_resolution_constraint = FALSE
+  )
+  
+  provider$initialize_provider(advanced_config)
+  
+  expect_equal(provider$openlayers_config$source, "CartoDB.Positron")
+  expect_equal(provider$openlayers_config$projection, "EPSG:3857")
+  expect_true(provider$openlayers_config$enable_rotation)
+  expect_false(provider$openlayers_config$keyboard_pan)
+  expect_true(provider$openlayers_config$mouse_wheel_zoom)
+  expect_true(provider$openlayers_config$constrain_resolution)
+  expect_false(provider$openlayers_config$smooth_resolution_constraint)
+})
+
+test_that("OpenLayersProvider validates complex configurations", {
+  provider <- OpenLayersProvider$new()
+  
+  # Test configuration with custom projection
+  config_with_projection <- list(
+    source = "OSM",
+    projection = "EPSG:4326",
+    extent = c(-180, -90, 180, 90)
+  )
+  
+  expect_true(provider$validate_config(config_with_projection))
+  
+  # Test configuration with unknown projection (should warn but validate)
+  config_unknown_proj <- list(
+    source = "OSM",
+    projection = "EPSG:9999"
+  )
+  
+  expect_warning(result <- provider$validate_config(config_unknown_proj))
+  expect_true(result)
+})

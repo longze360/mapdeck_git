@@ -599,6 +599,236 @@ OpenLayersProvider <- R6::R6Class("OpenLayersProvider",
       invisible(self)
     },
     
+    #' Create WMS Source
+    #'
+    #' Create a Web Map Service (WMS) source configuration.
+    #'
+    #' @param url Character string containing WMS service URL
+    #' @param layers Character vector of layer names to request
+    #' @param version Character string indicating WMS version (default: "1.3.0")
+    #' @param format Character string indicating image format (default: "image/png")
+    #' @param transparent Logical indicating if images should be transparent
+    #' @param attribution Character string for attribution text
+    #' @param additional_params List of additional WMS parameters
+    #' @return List containing WMS source configuration
+    create_wms_source = function(url, layers, version = "1.3.0", format = "image/png",
+                                transparent = TRUE, attribution = "", additional_params = list()) {
+      if (!is.character(url) || length(url) != 1 || nchar(url) == 0) {
+        stop("URL must be a single non-empty character string")
+      }
+      
+      if (!is.character(layers) || length(layers) == 0) {
+        stop("Layers must be a non-empty character vector")
+      }
+      
+      if (!grepl("^https?://", url)) {
+        stop("URL must start with http:// or https://")
+      }
+      
+      # Build WMS parameters
+      wms_params <- list(
+        SERVICE = "WMS",
+        VERSION = version,
+        REQUEST = "GetMap",
+        LAYERS = paste(layers, collapse = ","),
+        FORMAT = format,
+        TRANSPARENT = if (transparent) "TRUE" else "FALSE"
+      )
+      
+      # Add additional parameters
+      if (length(additional_params) > 0) {
+        wms_params <- c(wms_params, additional_params)
+      }
+      
+      config <- list(
+        type = "WMS",
+        url = url,
+        params = wms_params,
+        attribution = attribution,
+        layers = layers,
+        version = version,
+        format = format,
+        transparent = transparent
+      )
+      
+      return(config)
+    },
+    
+    #' Create WMTS Source
+    #'
+    #' Create a Web Map Tile Service (WMTS) source configuration.
+    #'
+    #' @param url Character string containing WMTS service URL
+    #' @param layer Character string indicating layer name
+    #' @param matrix_set Character string indicating tile matrix set
+    #' @param format Character string indicating tile format (default: "image/png")
+    #' @param attribution Character string for attribution text
+    #' @param style Character string indicating style (default: "default")
+    #' @param additional_params List of additional WMTS parameters
+    #' @return List containing WMTS source configuration
+    create_wmts_source = function(url, layer, matrix_set, format = "image/png",
+                                 attribution = "", style = "default", additional_params = list()) {
+      if (!is.character(url) || length(url) != 1 || nchar(url) == 0) {
+        stop("URL must be a single non-empty character string")
+      }
+      
+      if (!is.character(layer) || length(layer) != 1 || nchar(layer) == 0) {
+        stop("Layer must be a single non-empty character string")
+      }
+      
+      if (!is.character(matrix_set) || length(matrix_set) != 1 || nchar(matrix_set) == 0) {
+        stop("Matrix set must be a single non-empty character string")
+      }
+      
+      if (!grepl("^https?://", url)) {
+        stop("URL must start with http:// or https://")
+      }
+      
+      config <- list(
+        type = "WMTS",
+        url = url,
+        layer = layer,
+        matrixSet = matrix_set,
+        format = format,
+        style = style,
+        attribution = attribution
+      )
+      
+      # Add additional parameters
+      if (length(additional_params) > 0) {
+        config <- c(config, additional_params)
+      }
+      
+      return(config)
+    },
+    
+    #' Create Vector Tile Source
+    #'
+    #' Create a vector tile source configuration.
+    #'
+    #' @param url Character string containing vector tile URL template
+    #' @param format Character string indicating vector format (default: "MVT")
+    #' @param attribution Character string for attribution text
+    #' @param max_zoom Numeric maximum zoom level
+    #' @param min_zoom Numeric minimum zoom level
+    #' @param additional_params List of additional parameters
+    #' @return List containing vector tile source configuration
+    create_vector_tile_source = function(url, format = "MVT", attribution = "",
+                                        max_zoom = 14, min_zoom = 0, additional_params = list()) {
+      if (!is.character(url) || length(url) != 1 || nchar(url) == 0) {
+        stop("URL must be a single non-empty character string")
+      }
+      
+      if (!grepl("^https?://", url)) {
+        stop("URL must start with http:// or https://")
+      }
+      
+      if (!grepl("\\{z\\}", url) || !grepl("\\{x\\}", url) || !grepl("\\{y\\}", url)) {
+        stop("Vector tile URL must contain {z}, {x}, and {y} placeholders")
+      }
+      
+      # Validate zoom levels
+      if (!is.numeric(max_zoom) || length(max_zoom) != 1 || max_zoom < 1 || max_zoom > 22) {
+        stop("max_zoom must be a single numeric value between 1 and 22")
+      }
+      
+      if (!is.numeric(min_zoom) || length(min_zoom) != 1 || min_zoom < 0 || min_zoom >= max_zoom) {
+        stop("min_zoom must be a single numeric value between 0 and max_zoom")
+      }
+      
+      config <- list(
+        type = "VectorTile",
+        url = url,
+        format = format,
+        attribution = attribution,
+        max_zoom = max_zoom,
+        min_zoom = min_zoom
+      )
+      
+      # Add additional parameters
+      if (length(additional_params) > 0) {
+        config <- c(config, additional_params)
+      }
+      
+      return(config)
+    },
+    
+    #' Get Projection Information
+    #'
+    #' Get information about supported projections.
+    #'
+    #' @param projection Character string identifying the projection (optional)
+    #' @return List containing projection information
+    get_projection_info = function(projection = NULL) {
+      projections <- list(
+        "EPSG:3857" = list(
+          name = "Web Mercator",
+          description = "Spherical Mercator projection used by most web mapping services",
+          units = "m",
+          extent = c(-20037508.34, -20037508.34, 20037508.34, 20037508.34),
+          global = TRUE
+        ),
+        "EPSG:4326" = list(
+          name = "WGS 84",
+          description = "World Geodetic System 1984, geographic coordinate system",
+          units = "degrees",
+          extent = c(-180, -90, 180, 90),
+          global = TRUE
+        ),
+        "EPSG:3395" = list(
+          name = "World Mercator",
+          description = "Mercator projection of the World Geodetic System 1984",
+          units = "m",
+          extent = c(-20037508.34, -15496570.74, 20037508.34, 18764656.23),
+          global = TRUE
+        )
+      )
+      
+      if (is.null(projection)) {
+        return(projections)
+      } else {
+        if (projection %in% names(projections)) {
+          return(projections[[projection]])
+        } else {
+          warning(sprintf("Unknown projection: %s", projection))
+          return(NULL)
+        }
+      }
+    },
+    
+    #' Set Map Projection
+    #'
+    #' Set the map projection for the OpenLayers map.
+    #'
+    #' @param projection Character string indicating the projection
+    #' @param extent Numeric vector of extent coordinates (optional)
+    #' @return Invisible self for method chaining
+    set_projection = function(projection, extent = NULL) {
+      if (!is.character(projection) || length(projection) != 1) {
+        stop("Projection must be a single character string")
+      }
+      
+      # Validate projection
+      proj_info <- self$get_projection_info(projection)
+      if (is.null(proj_info)) {
+        warning(sprintf("Unknown projection '%s' - proceeding anyway", projection))
+      }
+      
+      # Update configuration
+      self$openlayers_config$projection <- projection
+      
+      if (!is.null(extent)) {
+        if (!is.numeric(extent) || length(extent) != 4) {
+          stop("Extent must be a numeric vector of length 4")
+        }
+        self$openlayers_config$extent <- extent
+      } else if (!is.null(proj_info)) {
+        self$openlayers_config$extent <- proj_info$extent
+      }
+      
+      invisible(self)
+    },
+    
     #' Validate Configuration
     #'
     #' Validate OpenLayers-specific configuration.
