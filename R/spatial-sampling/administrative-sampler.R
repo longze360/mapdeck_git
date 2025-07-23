@@ -357,7 +357,8 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
     #' @return ConcurrentProcessor object
     create_concurrent_processor = function(config) {
       tryCatch({
-        source("R/spatial-sampling/concurrent-processor.R", local = TRUE)
+        # The 'concurrent-processor.R' script is expected to be sourced by the
+        # calling script. This avoids path issues with nested source calls.
         processor <- ConcurrentProcessor$new()
         processor$initialize(config)
         return(processor)
