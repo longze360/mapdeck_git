@@ -4,10 +4,14 @@
 \alias{set_token}
 \title{Set Token}
 \usage{
-set_token(token)
+set_token(token, provider = "mapbox", scope = "default")
 }
 \arguments{
-\item{token}{Mapbox access token}
+\item{token}{Access token or API key for the specified provider}
+
+\item{provider}{Character string identifying the provider (default: "mapbox")}
+
+\item{scope}{Character string for token scope (default: "default")}
 }
 \description{
 Sets an access token so it's available for all mapdeck calls. See details
@@ -15,5 +19,18 @@ Sets an access token so it's available for all mapdeck calls. See details
 \details{
 Use \code{set_token} to make access tokens available for all the \code{mapdeck()}
 calls in a session so you don't have to keep specifying the \code{token} argument
-each time
+each time. The function now supports multiple providers while maintaining
+backward compatibility with existing Mapbox-only usage.
+}
+\examples{
+\donttest{
+# Backward compatible usage (Mapbox)
+set_token("pk.your_mapbox_token_here")
+
+# Multi-provider usage
+set_token("pk.your_mapbox_token", provider = "mapbox")
+set_token("your_gaode_api_key", provider = "gaode")
+set_token("your_baidu_api_key", provider = "baidu")
+}
+
 }

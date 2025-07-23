@@ -4,26 +4,48 @@
 \alias{mapdeck_style}
 \title{Mapdeck Style}
 \usage{
-mapdeck_style(
-  style = c("dark", "light", "outdoors", "streets", "satellite", "satellite-streets")
-)
+mapdeck_style(style = NULL, provider = NULL, validate = TRUE)
 }
 \arguments{
-\item{style}{one of streets, outdoors, light, dark, satellite, satellite-streets}
+\item{style}{Character string specifying the style name. Can be a generic style
+name (e.g., "streets", "dark", "satellite") or a provider-specific style
+identifier. If NULL, uses the provider's default style.}
+
+\item{provider}{Character string specifying the map provider. One of "mapbox",
+"leaflet", "openlayers", "gaode", or "baidu". If NULL, defaults to "mapbox"
+for backward compatibility.}
+
+\item{validate}{Logical indicating whether to validate the style before returning.
+Default is TRUE.}
+}
+\value{
+Character string containing the provider-specific style identifier.
 }
 \description{
-Various styles available to all Mapbox accounts using a valid access token.
-Available styles are listed at
-\url{https://docs.mapbox.com/api/maps/#styles}.
+Get provider-specific map styles using the enhanced style management system.
+This function now supports multiple map providers and provides consistent
+style names across different backends.
 }
 \examples{
 \donttest{
 
-## You need a valid access token from Mapbox
-key <- 'abc'
+## Basic usage with Mapbox (backward compatible)
+mapdeck_style("dark")
+mapdeck_style("streets")
 
-## set a map style
-mapdeck(token = key, style = mapdeck_style("dark"))
+## Multi-provider usage
+mapdeck_style("dark", provider = "mapbox")
+mapdeck_style("dark", provider = "leaflet")
+mapdeck_style("satellite", provider = "openlayers")
+
+## Chinese providers
+mapdeck_style("streets", provider = "gaode")
+mapdeck_style("satellite", provider = "baidu")
+
+## Get available styles
+resolver <- get_style_resolver()
+available_styles <- resolver$get_available_styles()
+print(available_styles)
 
 }
 

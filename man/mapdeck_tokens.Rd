@@ -2,10 +2,28 @@
 % Please edit documentation in R/mapdeck_tokens.R
 \name{mapdeck_tokens}
 \alias{mapdeck_tokens}
-\title{Mapdeck_tokens}
+\title{Mapdeck Tokens}
 \usage{
-mapdeck_tokens()
+mapdeck_tokens(show_values = FALSE)
+}
+\arguments{
+\item{show_values}{Logical indicating whether to show masked token values (default: FALSE)}
 }
 \description{
-Retrieves the mapdeck token that has been set
+Retrieves all tokens that have been set for different providers
+}
+\details{
+This function now displays tokens for all configured providers, not just Mapbox.
+It maintains backward compatibility by checking both the new multi-provider system
+and the legacy options system.
+}
+\examples{
+\donttest{
+# Display all configured tokens
+mapdeck_tokens()
+
+# Display tokens with masked values
+mapdeck_tokens(show_values = TRUE)
+}
+
 }

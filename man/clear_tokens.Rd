@@ -2,10 +2,28 @@
 % Please edit documentation in R/mapdeck_tokens.R
 \name{clear_tokens}
 \alias{clear_tokens}
-\title{Clear tokens}
+\title{Clear Tokens}
 \usage{
-clear_tokens()
+clear_tokens(provider = NULL)
+}
+\arguments{
+\item{provider}{Character string identifying specific provider to clear (optional)}
 }
 \description{
-Clears the access tokens
+Clears all access tokens for all providers
+}
+\details{
+This function clears tokens from both the new multi-provider system and the
+legacy options system for backward compatibility. If no provider is specified,
+all tokens are cleared.
+}
+\examples{
+\donttest{
+# Clear all tokens
+clear_tokens()
+
+# Clear tokens for specific provider
+clear_tokens("mapbox")
+}
+
 }

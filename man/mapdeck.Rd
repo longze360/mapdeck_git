@@ -6,11 +6,12 @@
 \usage{
 mapdeck(
   data = NULL,
-  token = get_access_token(api = "mapbox"),
+  token = NULL,
+  provider = "mapbox",
   width = NULL,
   height = NULL,
   padding = 0,
-  style = "mapbox://styles/mapbox/streets-v9",
+  style = NULL,
   pitch = 0,
   zoom = 0,
   bearing = 0,
@@ -28,9 +29,13 @@ mapdeck(
 \item{data}{data to be used in the layer. All coordinates are expected to be
 EPSG:4326 (WGS 84) coordinate system}
 
-\item{token}{Mapbox Acess token. Use \code{set_token()} or \code{Sys.setenv()} to set a global token.
-See Access Tokens section for further details.
-If left empty layers will still be plotted, but without a Mapbox map.}
+\item{token}{Access token for the specified provider. Use \code{set_token()} or 
+\code{Sys.setenv()} to set a global token. See Access Tokens section for details.
+If left empty layers will still be plotted, but without a base map.}
+
+\item{provider}{Character string identifying the map provider to use. 
+Options: "mapbox", "leaflet", "openlayers", "gaode", "baidu". 
+Defaults to "mapbox" for backward compatibility.}
 
 \item{width}{the width of the map}
 
@@ -82,10 +87,10 @@ mapdeck
 
 
 If the \code{token} argument is not used, the map will search for the token, firstly by
-checking if \code{set_token()} was used, then it will search environment variables using
-\code{Sys.getenv()} and the following values, in this order
-
-c("MAPBOX_TOKEN","MAPBOX_KEY","MAPBOX_API_TOKEN", "MAPBOX_API_KEY", "MAPBOX", "MAPDECK")
+checking if \code{set_token()} was used, then it will search environment variables.
+For Mapbox, it searches: c("MAPBOX_TOKEN","MAPBOX_KEY","MAPBOX_API_TOKEN", 
+"MAPBOX_API_KEY", "MAPBOX", "MAPDECK"). Other providers have their own environment
+variable patterns.
 
 If multiple tokens are found, the first one is used
 }

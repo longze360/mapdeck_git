@@ -107,36 +107,49 @@ mapdeck <- function(
     repeat_view = repeat_view
   )
   
-  # Use provider system for all providers
+  # Check if provider system is available and provider is implemented
+  provider_system_available <- FALSE
+  
   if (provider %in% c("mapbox", "leaflet", "openlayers", "gaode", "baidu")) {
     # Try to use provider system
     tryCatch({
-      # Create provider instance
-      map_provider <- create_provider(provider, provider_config)
+      # Check if provider factory is available
+      factory <- get_provider_factory()
       
-      # Create map using provider
-      mapdeckmap <- map_provider$create_map(options = map_options)
-      
-      # Store provider reference in map object for later use
-      attr(mapdeckmap, "mapdeck_provider") <- map_provider
-      
-      return(mapdeckmap)
-    }, error = function(e) {
-      if (provider == "mapbox") {
-        # Fall back to legacy implementation for Mapbox backward compatibility
-        warning(sprintf("Provider system error for Mapbox, using legacy implementation: %s", e$message))
-        # Continue to legacy implementation below
-      } else {
-        # For non-Mapbox providers, provide helpful error message
-        if (grepl("not available yet", e$message) || grepl("not registered", e$message)) {
-          stop(sprintf("Provider '%s' implementation is not yet complete. Please use 'mapbox' provider for now.", provider))
-        } else {
-          stop(sprintf("Failed to initialize %s provider: %s", provider, e$message))
+      # Check if provider is registered and has a factory class
+      if (factory$registry$is_registered(provider)) {
+        provider_class <- factory$registry$get_provider_factory(provider)
+        
+        if (!is.null(provider_class)) {
+          # Create provider instance
+          map_provider <- create_provider(provider, provider_config)
+          
+          # Create map using provider
+          mapdeckmap <- map_provider$create_map(options = map_options)
+          
+          # Store provider reference in map object for later use
+          attr(mapdeckmap, "mapdeck_provider") <- map_provider
+          
+          provider_system_available <- TRUE
+          return(mapdeckmap)
         }
+      }
+    }, error = function(e) {
+      # Log the error but continue to fallback
+      if (getOption("mapdeck.debug", FALSE)) {
+        message(sprintf("Provider system error for %s: %s", provider, e$message))
       }
     })
   } else {
     stop(sprintf("Unknown provider '%s'. Available providers: mapbox, leaflet, openlayers, gaode, baidu", provider))
+  }
+  
+  # If provider system is not available or failed, use fallback implementation
+  if (!provider_system_available) {
+    if (provider != "mapbox") {
+      # For non-Mapbox providers, inform user that implementation is not complete
+      message(sprintf("Provider '%s' implementation is not yet complete. Using legacy Mapbox-compatible implementation.", provider))
+    }
   }
   
   # Legacy implementation (backward compatibility)
