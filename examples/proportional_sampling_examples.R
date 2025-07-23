@@ -10,10 +10,10 @@ library(R6)
 
 # 加载必要的抽样功能
 # Load required sampling functions
-source('R/spatial-sampling/concurrent-processor.R')
-source('R/spatial-sampling-engine.R') 
-source('R/spatial-sampling/administrative-sampler.R')
-source('R/spatial-sampling/proportional-sampler.R')
+source('../R/spatial-sampling/concurrent-processor.R')
+source('../R/spatial-sampling-engine.R') 
+source('../R/spatial-sampling/administrative-sampler.R')
+source('../R/spatial-sampling/proportional-sampler.R')
 
 # ============================================================================
 # 示例1: 人口比例抽样 (Population Proportional Sampling)

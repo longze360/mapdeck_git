@@ -302,8 +302,10 @@ add_path <- function(
 }
 
 
+#' @export
 resolve_binary_data <- function( data, l ) UseMethod("resolve_binary_data")
 
+#' @exportS3method
 resolve_binary_data.interleaved <- function( data, l ) {
 
 	l[["bbox"]] <- get_box( data, l )
@@ -312,7 +314,7 @@ resolve_binary_data.interleaved <- function( data, l ) {
 	return( l )
 }
 
-#' @export
+#' @exportS3method
 resolve_binary_data.sf <- function( data, l ) {
 	sfc_col <- attr( data, "sf_column" )
 	l[["geometry"]] <- sfc_col
@@ -328,6 +330,7 @@ resolve_binary_data.sf <- function( data, l ) {
 	return(l)
 }
 
+#' @exportS3method
 resolve_binary_data.default <- function( data, l ) {
 	return( resolve_data( data, l, "LINESTRING" ) )
 }
@@ -339,6 +342,3 @@ clear_path <- function( map, layer_id = NULL, update_view = TRUE, clear_legend =
 	layer_id <- layerId(layer_id, "path")
 	invoke_method(map, "md_layer_clear", map_type( map ), layer_id, "path", update_view, clear_legend )
 }
-
-
-
