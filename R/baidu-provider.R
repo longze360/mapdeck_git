@@ -34,22 +34,11 @@ NULL
 BaiduProvider <- R6::R6Class("BaiduProvider",
   inherit = IMapProvider,
   public = list(
-    #' @field baidu_config Baidu configuration
     baidu_config = NULL,
-    
-    #' @field api_key Baidu Maps API key
     api_key = NULL,
-    
-    #' @field current_style Current map style
     current_style = NULL,
-    
-    #' @field layers Active layers list
     layers = NULL,
-    
-    #' @field map_instance Map instance reference
     map_instance = NULL,
-    
-    #' @field coordinate_transformer Coordinate transformation service
     coordinate_transformer = NULL,
     
     #' Initialize Constructor
@@ -217,8 +206,8 @@ BaiduProvider <- R6::R6Class("BaiduProvider",
           defaultHeight = 800,
           padding = validated_options$padding %||% 0,
           browser.fill = FALSE
-        )
-      )
+  )
+)
       
       # Add dependencies
       map_widget <- add_dependencies(map_widget)
@@ -265,10 +254,9 @@ BaiduProvider <- R6::R6Class("BaiduProvider",
       }
       
       invisible(self)
-    }
-  )
-)    #' Ad
-d Layer to Map
+    },
+    
+    #' Add Layer to Map
     #'
     #' Add a deck.gl layer to the Baidu map with coordinate transformation.
     #'
@@ -585,6 +573,19 @@ d Layer to Map
     }
   )
 )
+
+#' Add Layer
+#'
+#' Adds a layer to the map.
+#'
+#' @param map the map object
+#' @param layer the layer to add
+#' @return the map object
+#' @export
+add_layer <- function(map, layer) {
+  map$add_layer(layer)
+  return(map)
+}
 
 #' Create Baidu JavaScript Dependency
 #'

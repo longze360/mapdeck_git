@@ -446,41 +446,36 @@ All code files must be limited to 500 lines maximum. This constraint will be enf
 
 ### Modular File Structure
 
+All R source files must be directly in the `R/` directory as per R package standards. Files are organized with descriptive prefixes to maintain logical grouping:
+
 ```
 R/
-├── provider-core/
-│   ├── provider-interface.R          # Provider interface definition (< 200 lines)
-│   ├── provider-factory.R            # Provider factory and registry (< 300 lines)
-│   ├── provider-config.R             # Configuration management (< 250 lines)
-│   └── provider-utils.R              # Shared provider utilities (< 200 lines)
-├── providers/
-│   ├── mapbox-provider.R             # Mapbox implementation (< 400 lines)
-│   ├── leaflet-provider.R            # Leaflet implementation (< 400 lines)
-│   ├── openlayers-provider.R         # OpenLayers implementation (< 400 lines)
-│   ├── gaode-provider.R              # Gaode Maps implementation (< 400 lines)
-│   └── baidu-provider.R              # Baidu Maps implementation (< 400 lines)
-├── token-management/
-│   ├── token-store.R                 # Token storage operations (< 300 lines)
-│   ├── token-validation.R            # Token validation logic (< 200 lines)
-│   └── token-utils.R                 # Token utility functions (< 150 lines)
-├── coordinate-transform/
-│   ├── coordinate-transformer.R      # Core transformation logic (< 400 lines)
-│   ├── projection-manager.R          # Projection management (< 300 lines)
-│   └── bounds-converter.R            # Bounds transformation (< 200 lines)
-├── spatial-sampling/
-│   ├── sampling-engine.R             # Core sampling algorithms (< 450 lines)
-│   ├── administrative-sampler.R      # Admin boundary sampling (< 400 lines)
-│   ├── allocation-strategies.R       # Sample allocation methods (< 300 lines)
-│   ├── concurrent-processor.R        # Parallel processing (< 350 lines)
-│   └── gpu-operations.R              # GPU acceleration utilities (< 300 lines)
-├── style-management/
-│   ├── style-resolver.R              # Style resolution logic (< 250 lines)
-│   ├── style-validator.R             # Style validation (< 200 lines)
-│   └── theme-manager.R               # Theme management (< 200 lines)
-└── utils/
-    ├── error-handling.R              # Error classes and handlers (< 200 lines)
-    ├── validation-utils.R            # Input validation utilities (< 250 lines)
-    └── performance-utils.R           # Performance monitoring (< 200 lines)
+├── provider-interface.R              # Provider interface definition (< 200 lines)
+├── provider-factory.R               # Provider factory and registry (< 300 lines)
+├── provider-config.R                # Configuration management (< 250 lines)
+├── provider-utils.R                 # Shared provider utilities (< 200 lines)
+├── provider-mapbox.R                # Mapbox implementation (< 400 lines)
+├── provider-leaflet.R               # Leaflet implementation (< 400 lines)
+├── provider-openlayers.R            # OpenLayers implementation (< 400 lines)
+├── provider-gaode.R                 # Gaode Maps implementation (< 400 lines)
+├── provider-baidu.R                 # Baidu Maps implementation (< 400 lines)
+├── token-store.R                    # Token storage operations (< 300 lines)
+├── token-validation.R               # Token validation logic (< 200 lines)
+├── token-utils.R                    # Token utility functions (< 150 lines)
+├── coordinate-transformer.R         # Core transformation logic (< 400 lines)
+├── coordinate-projection.R          # Projection management (< 300 lines)
+├── coordinate-bounds.R              # Bounds transformation (< 200 lines)
+├── spatial-sampling-engine.R        # Core sampling algorithms (< 450 lines)
+├── spatial-sampling-admin.R         # Admin boundary sampling (< 400 lines)
+├── spatial-sampling-allocation.R    # Sample allocation methods (< 300 lines)
+├── spatial-sampling-concurrent.R    # Parallel processing (< 350 lines)
+├── spatial-sampling-gpu.R           # GPU acceleration utilities (< 300 lines)
+├── style-resolver.R                 # Style resolution logic (< 250 lines)
+├── style-validator.R                # Style validation (< 200 lines)
+├── style-theme.R                    # Theme management (< 200 lines)
+├── error-handling.R                 # Error classes and handlers (< 200 lines)
+├── validation-utils.R               # Input validation utilities (< 250 lines)
+└── performance-utils.R              # Performance monitoring (< 200 lines)
 ```
 
 ### Code Quality Standards

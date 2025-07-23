@@ -16,10 +16,6 @@ NULL
 #' The AdministrativeSampler class provides methods for generating random points
 #' within administrative boundaries with different allocation strategies.
 #'
-#' @field allocation_strategy Strategy for allocating samples across units
-#' @field boundary_validator Validator to ensure points fall within boundaries
-#' @field concurrent_processor Processor for parallel operations
-#'
 #' @export
 AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
   public = list(
@@ -151,15 +147,15 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
   ),
 
   private = list(
-    #' Validate Inputs
-    #'
-    #' Validate inputs for administrative sampling.
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param total_samples Total number of samples to generate
-    #' @param allocation_method Method for allocating samples
-    #' @param weight_column Column name for custom weights
-    #' @param admin_column Column name for administrative unit identifiers
+    # Validate Inputs
+    #
+    # Validate inputs for administrative sampling.
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param total_samples Total number of samples to generate
+    # @param allocation_method Method for allocating samples
+    # @param weight_column Column name for custom weights
+    # @param admin_column Column name for administrative unit identifiers
     validate_inputs = function(admin_polygons, total_samples, allocation_method,
                                weight_column, admin_column) {
       private$validate_admin_polygons(admin_polygons)
@@ -170,9 +166,9 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       private$validate_admin_column(admin_polygons, admin_column)
     },
 
-    #' Validate Administrative Polygons
-    #'
-    #' @param admin_polygons sf object with administrative polygons
+    # Validate Administrative Polygons
+    #
+    # @param admin_polygons sf object with administrative polygons
     validate_admin_polygons = function(admin_polygons) {
       if (is.null(admin_polygons) || nrow(admin_polygons) == 0) {
         stop("admin_polygons must be non-empty")
@@ -183,9 +179,9 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Validate Total Samples
-    #'
-    #' @param total_samples Total number of samples to generate
+    # Validate Total Samples
+    #
+    # @param total_samples Total number of samples to generate
     validate_total_samples = function(total_samples) {
       if (!is.numeric(total_samples) || total_samples <= 0 ||
           total_samples != as.integer(total_samples)) {
@@ -193,9 +189,9 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Validate Allocation Method
-    #'
-    #' @param allocation_method Method for allocating samples
+    # Validate Allocation Method
+    #
+    # @param allocation_method Method for allocating samples
     validate_allocation_method = function(allocation_method) {
       valid_methods <- c("proportional", "equal", "custom")
       if (!allocation_method %in% valid_methods) {
@@ -204,11 +200,11 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Validate Weight Column
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param allocation_method Method for allocating samples
-    #' @param weight_column Column name for custom weights
+    # Validate Weight Column
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param allocation_method Method for allocating samples
+    # @param weight_column Column name for custom weights
     validate_weight_column = function(admin_polygons, allocation_method,
                                       weight_column) {
       if (allocation_method == "custom" && is.null(weight_column)) {
@@ -221,10 +217,10 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Validate Admin Column
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param admin_column Column name for administrative unit identifiers
+    # Validate Admin Column
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param admin_column Column name for administrative unit identifiers
     validate_admin_column = function(admin_polygons, admin_column) {
       if (!is.null(admin_column) &&
           !admin_column %in% names(admin_polygons)) {
@@ -232,11 +228,11 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Prepare Administrative Data
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @return List with prepared administrative data
+    # Prepare Administrative Data
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param admin_column Column name for administrative unit identifiers
+    # @return List with prepared administrative data
     prepare_admin_data = function(admin_polygons, admin_column) {
       # Detect admin column if not specified
       if (is.null(admin_column)) {
@@ -255,10 +251,10 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       )
     },
 
-    #' Detect Administrative Column
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @return Name of the administrative column
+    # Detect Administrative Column
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @return Name of the administrative column
     detect_admin_column = function(admin_polygons) {
       admin_patterns <- c("id", "name", "code", "admin", "region",
                           "district", "area")
@@ -266,7 +262,7 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       for (pattern in admin_patterns) {
         matches <- grep(pattern, names(admin_polygons), ignore.case = TRUE)
         if (length(matches) > 0) {
-          return(names(admin_polygons)[matches[1]])
+          return(names(admin_polygons)[matches])
         }
       }
 
@@ -274,15 +270,15 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       geom_col <- attr(admin_polygons, "sf_column")
       non_geom_cols <- setdiff(names(admin_polygons), geom_col)
       if (length(non_geom_cols) > 0) {
-        return(non_geom_cols[1])
+        return(non_geom_cols)
       }
 
       return("admin_id")
     },
 
-    #' Update Allocation Strategy
-    #'
-    #' @param allocation_method Method for allocating samples
+    # Update Allocation Strategy
+    #
+    # @param allocation_method Method for allocating samples
     update_allocation_strategy = function(allocation_method) {
       if (is.null(self$allocation_strategy) ||
           self$allocation_strategy$method != allocation_method) {
@@ -292,13 +288,13 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Generate Samples
-    #'
-    #' @param admin_data Prepared administrative data
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param concurrent Logical for concurrent processing
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points
+    # Generate Samples
+    #
+    # @param admin_data Prepared administrative data
+    # @param sample_counts Named vector of sample counts per unit
+    # @param concurrent Logical for concurrent processing
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points
     generate_samples = function(admin_data, sample_counts, concurrent,
                                 use_gpu) {
       if (concurrent && !is.null(self$concurrent_processor)) {
@@ -318,11 +314,11 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       }
     },
 
-    #' Validate Boundaries
-    #'
-    #' @param samples sf object with sampled points
-    #' @param admin_polygons sf object with administrative polygons
-    #' @return Validated samples
+    # Validate Boundaries
+    #
+    # @param samples sf object with sampled points
+    # @param admin_polygons sf object with administrative polygons
+    # @return Validated samples
     validate_boundaries = function(samples, admin_polygons) {
       if (!is.null(self$boundary_validator)) {
         return(self$boundary_validator$validate_points(samples,
@@ -331,10 +327,10 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(samples)
     },
 
-    #' Create Allocation Strategy
-    #'
-    #' @param method Allocation method
-    #' @return AllocationStrategy object
+    # Create Allocation Strategy
+    #
+    # @param method Allocation method
+    # @return AllocationStrategy object
     create_allocation_strategy = function(method) {
       switch(method,
         "proportional" = ProportionalAllocationStrategy$new(),
@@ -344,17 +340,17 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       )
     },
 
-    #' Create Boundary Validator
-    #'
-    #' @return BoundaryValidator object
+    # Create Boundary Validator
+    #
+    # @return BoundaryValidator object
     create_boundary_validator = function() {
       BoundaryValidator$new()
     },
 
-    #' Create Concurrent Processor
-    #'
-    #' @param config Configuration for concurrent processor
-    #' @return ConcurrentProcessor object
+    # Create Concurrent Processor
+    #
+    # @param config Configuration for concurrent processor
+    # @return ConcurrentProcessor object
     create_concurrent_processor = function(config) {
       tryCatch({
         # The 'concurrent-processor.R' script is expected to be sourced by the
@@ -368,13 +364,13 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       })
     },
 
-    #' Process Units Sequentially
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points
+    # Process Units Sequentially
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Named vector of sample counts per unit
+    # @param admin_column Column name for administrative unit identifiers
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points
     process_units_sequentially = function(admin_polygons, sample_counts,
                                           admin_column, use_gpu) {
       all_samples <- list()
@@ -392,13 +388,13 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(private$combine_samples(all_samples, admin_polygons))
     },
 
-    #' Process Single Administrative Unit
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points for this unit
+    # Process Single Administrative Unit
+    #
+    # @param polygon sf object with a single polygon
+    # @param sample_counts Named vector of sample counts per unit
+    # @param admin_column Column name for administrative unit identifiers
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points for this unit
     process_single_unit = function(polygon, sample_counts, admin_column,
                                    use_gpu) {
       admin_id <- as.character(polygon[[admin_column]])
@@ -418,17 +414,17 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
           data.frame(admin_id = admin_id),
           geometry = sf::st_geometry(unit_samples)
         )
-        names(unit_samples)[1] <- admin_column
+        names(unit_samples) <- admin_column
       }
 
       return(unit_samples)
     },
 
-    #' Combine Samples
-    #'
-    #' @param all_samples List of sample sf objects
-    #' @param admin_polygons sf object with administrative polygons
-    #' @return Combined sf object
+    # Combine Samples
+    #
+    # @param all_samples List of sample sf objects
+    # @param admin_polygons sf object with administrative polygons
+    # @return Combined sf object
     combine_samples = function(all_samples, admin_polygons) {
       if (length(all_samples) == 0) {
         return(sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(admin_polygons))))
@@ -438,12 +434,12 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(combined_samples)
     },
 
-    #' Generate Points in Polygon
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param n_samples Number of samples to generate
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points
+    # Generate Points in Polygon
+    #
+    # @param polygon sf object with a single polygon
+    # @param n_samples Number of samples to generate
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points
     generate_points_in_polygon = function(polygon, n_samples, use_gpu) {
       bbox <- sf::st_bbox(polygon)
       bounds <- c(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"])
@@ -455,12 +451,12 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(points_in_polygon)
     },
 
-    #' Rejection Sampling for Polygon
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
-    #' @param n_samples Number of samples to generate
-    #' @return sf object with sampled points
+    # Rejection Sampling for Polygon
+    #
+    # @param polygon sf object with a single polygon
+    # @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
+    # @param n_samples Number of samples to generate
+    # @return sf object with sampled points
     rejection_sampling = function(polygon, bounds, n_samples) {
       points_in_polygon <- NULL
       attempts <- 1
@@ -490,11 +486,11 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(private$finalize_polygon_samples(points_in_polygon, n_samples))
     },
 
-    #' Finalize Polygon Samples
-    #'
-    #' @param points_in_polygon sf object with points in polygon
-    #' @param n_samples Number of samples requested
-    #' @return Final sf object with correct number of samples
+    # Finalize Polygon Samples
+    #
+    # @param points_in_polygon sf object with points in polygon
+    # @param n_samples Number of samples requested
+    # @return Final sf object with correct number of samples
     finalize_polygon_samples = function(points_in_polygon, n_samples) {
       if (is.null(points_in_polygon) || nrow(points_in_polygon) == 0) {
         return(NULL)
@@ -517,14 +513,14 @@ AdministrativeSampler <- R6::R6Class("AdministrativeSampler",
       return(points_in_polygon)
     },
 
-    #' Generate Random Points in Bounds
-    #'
-    #' @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
-    #' @param n Number of points to generate
-    #' @return sf object with random points
+    # Generate Random Points in Bounds
+    #
+    # @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
+    # @param n Number of points to generate
+    # @return sf object with random points
     generate_random_points_in_bounds = function(bounds, n) {
-      x <- runif(n, bounds[1], bounds[3])
-      y <- runif(n, bounds[2], bounds[4])
+      x <- runif(n, bounds, bounds)
+      y <- runif(n, bounds, bounds)
 
       points <- sf::st_as_sf(
         data.frame(x = x, y = y),
@@ -598,11 +594,11 @@ ProportionalAllocationStrategy <- R6::R6Class("ProportionalAllocationStrategy",
   ),
 
   private = list(
-    #' Get Weights for Allocation
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param weight_column Column name for custom weights
-    #' @return Numeric vector of weights
+    # Get Weights for Allocation
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param weight_column Column name for custom weights
+    # @return Numeric vector of weights
     get_weights = function(admin_polygons, weight_column) {
       if (is.null(weight_column)) {
         # Calculate areas in square meters
@@ -613,11 +609,11 @@ ProportionalAllocationStrategy <- R6::R6Class("ProportionalAllocationStrategy",
       }
     },
 
-    #' Calculate Proportional Allocation
-    #'
-    #' @param weights Numeric vector of weights
-    #' @param total_samples Total number of samples
-    #' @return Integer vector of sample counts
+    # Calculate Proportional Allocation
+    #
+    # @param weights Numeric vector of weights
+    # @param total_samples Total number of samples
+    # @return Integer vector of sample counts
     calculate_proportional_allocation = function(weights, total_samples) {
       proportions <- weights / sum(weights)
       sample_counts <- floor(proportions * total_samples)
@@ -634,13 +630,13 @@ ProportionalAllocationStrategy <- R6::R6Class("ProportionalAllocationStrategy",
       return(sample_counts)
     },
 
-    #' Create Named Sample Counts
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Integer vector of sample counts
-    #' @return Named vector of sample counts
+    # Create Named Sample Counts
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Integer vector of sample counts
+    # @return Named vector of sample counts
     create_named_sample_counts = function(admin_polygons, sample_counts) {
-      admin_ids <- as.character(admin_polygons[[1]])
+      admin_ids <- as.character(admin_polygons[])
       names(sample_counts) <- admin_ids
       return(sample_counts)
     }
@@ -680,11 +676,11 @@ EqualAllocationStrategy <- R6::R6Class("EqualAllocationStrategy",
   ),
 
   private = list(
-    #' Calculate Equal Allocation
-    #'
-    #' @param n_units Number of administrative units
-    #' @param total_samples Total number of samples
-    #' @return Integer vector of sample counts
+    # Calculate Equal Allocation
+    #
+    # @param n_units Number of administrative units
+    # @param total_samples Total number of samples
+    # @return Integer vector of sample counts
     calculate_equal_allocation = function(n_units, total_samples) {
       base_samples <- floor(total_samples / n_units)
       remaining <- total_samples - (base_samples * n_units)
@@ -699,13 +695,13 @@ EqualAllocationStrategy <- R6::R6Class("EqualAllocationStrategy",
       return(sample_counts)
     },
 
-    #' Create Named Sample Counts
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Integer vector of sample counts
-    #' @return Named vector of sample counts
+    # Create Named Sample Counts
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Integer vector of sample counts
+    # @return Named vector of sample counts
     create_named_sample_counts = function(admin_polygons, sample_counts) {
-      admin_ids <- as.character(admin_polygons[[1]])
+      admin_ids <- as.character(admin_polygons[])
       names(sample_counts) <- admin_ids
       return(sample_counts)
     }
@@ -746,10 +742,10 @@ CustomAllocationStrategy <- R6::R6Class("CustomAllocationStrategy",
   ),
 
   private = list(
-    #' Validate Weight Column
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param weight_column Column name for custom weights
+    # Validate Weight Column
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param weight_column Column name for custom weights
     validate_weight_column = function(admin_polygons, weight_column) {
       if (is.null(weight_column)) {
         stop("weight_column must be specified for custom allocation")
@@ -760,11 +756,11 @@ CustomAllocationStrategy <- R6::R6Class("CustomAllocationStrategy",
       }
     },
 
-    #' Get and Validate Weights
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param weight_column Column name for custom weights
-    #' @return Validated numeric vector of weights
+    # Get and Validate Weights
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param weight_column Column name for custom weights
+    # @return Validated numeric vector of weights
     get_and_validate_weights = function(admin_polygons, weight_column) {
       weights <- admin_polygons[[weight_column]]
 
@@ -784,11 +780,11 @@ CustomAllocationStrategy <- R6::R6Class("CustomAllocationStrategy",
       return(weights)
     },
 
-    #' Calculate Custom Allocation
-    #'
-    #' @param weights Numeric vector of weights
-    #' @param total_samples Total number of samples
-    #' @return Integer vector of sample counts
+    # Calculate Custom Allocation
+    #
+    # @param weights Numeric vector of weights
+    # @param total_samples Total number of samples
+    # @return Integer vector of sample counts
     calculate_custom_allocation = function(weights, total_samples) {
       proportions <- weights / sum(weights)
       sample_counts <- floor(proportions * total_samples)
@@ -805,13 +801,13 @@ CustomAllocationStrategy <- R6::R6Class("CustomAllocationStrategy",
       return(sample_counts)
     },
 
-    #' Create Named Sample Counts
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Integer vector of sample counts
-    #' @return Named vector of sample counts
+    # Create Named Sample Counts
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Integer vector of sample counts
+    # @return Named vector of sample counts
     create_named_sample_counts = function(admin_polygons, sample_counts) {
-      admin_ids <- as.character(admin_polygons[[1]])
+      admin_ids <- as.character(admin_polygons[])
       names(sample_counts) <- admin_ids
       return(sample_counts)
     }

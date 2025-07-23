@@ -692,6 +692,70 @@ validate_baidu_layer <- function(layer) {
   return(layer)
 }
 
+#' List Available Providers
+#'
+#' Get a list of all available map providers that can be used with mapdeck.
+#'
+#' @description
+#' This function returns a character vector of all map providers that are
+#' currently available and registered in the provider system. It includes
+#' both built-in providers and any custom providers that have been registered.
+#'
+#' @param include_status Logical indicating if provider status should be included
+#' @return Character vector of available provider names, or named list with status if include_status is TRUE
+#'
+#' @examples
+#' \donttest{
+#' # Get list of available providers
+#' providers <- list_available_providers()
+#' print(providers)
+#' 
+#' # Get providers with status information
+#' provider_status <- list_available_providers(include_status = TRUE)
+#' print(provider_status)
+#' }
+#'
+#' @export
+list_available_providers <- function(include_status = FALSE) {
+  
+  if (!is.logical(include_status) || length(include_status) != 1) {
+    stop("include_status must be a single logical value")
+  }
+  
+  tryCatch({
+    factory <- get_provider_factory()
+    providers <- factory$get_available_providers()
+    
+    if (!include_status) {
+      return(providers)
+    }
+    
+    # Get status for each provider
+    provider_status <- list()
+    
+    for (provider in providers) {
+      config <- factory$registry$get_provider_config(provider)
+      provider_class <- factory$registry$get_provider_factory(provider)
+      
+      status <- list(
+        available = !is.null(provider_class),
+        authentication_required = if (!is.null(config)) config$authentication_required else FALSE,
+        coordinate_system = if (!is.null(config)) config$coordinate_system else "EPSG:4326",
+        supported_features = if (!is.null(config)) config$supported_features else list()
+      )
+      
+      provider_status[[provider]] <- status
+    }
+    
+    return(provider_status)
+    
+  }, error = function(e) {
+    # Fallback to basic list if provider system is not available
+    warning("Provider system not fully available, returning basic provider list")
+    return(c("mapbox", "leaflet", "openlayers", "gaode", "baidu"))
+  })
+}
+
 # Define %||% operator if not already defined
 if (!exists("%||%")) {
   `%||%` <- function(x, y) if (is.null(x)) y else x

@@ -9,9 +9,9 @@ library(R6)
 # Load necessary sampling functions
 # Note: Adjust the path if running from a different directory.
 # The '../' assumes this script is run from the 'examples' directory.
-source('../R/concurrent-processor.R')
-source('../R/spatial-sampling-engine.R')
-source('../R/administrative-sampler.R')
+source('R/concurrent-processor.R')
+source('R/spatial-sampling-engine.R')
+source('R/administrative-sampler.R')
 
 # ============================================================================
 # Example 1: Basic Proportional Sampling
@@ -32,10 +32,10 @@ create_admin_regions <- function() {
     population = c(1000, 2500, 1500)
   )
   admin_sf <- st_sf(admin_data, geometry = st_sfc(polygons), crs = 4326)
-  
+
   # Add area for clarity
   admin_sf$area_sqkm <- as.numeric(st_area(admin_sf) / 1e6)
-  
+
   return(admin_sf)
 }
 
@@ -46,7 +46,7 @@ print(admin_sf)
 
 # Perform proportional sampling (proportional to area)
 prop_samples <- spatial_sample_administrative(
-  admin_sf, 
+  admin_sf,
   total_samples = 100,
   seed = 123
 )
@@ -59,7 +59,7 @@ total_area <- sum(admin_sf$area_sqkm)
 for(id in names(prop_counts)) {
     region_area <- admin_sf$area_sqkm[admin_sf$admin_id == id]
     expected <- round(100 * (region_area / total_area))
-    cat(sprintf("  Region %s: %d samples (Area: %.2f, Expected: %d)\n", 
+    cat(sprintf("  Region %s: %d samples (Area: %.2f, Expected: %d)\n",
         id, prop_counts[id], region_area, expected))
 }
 
@@ -71,8 +71,8 @@ for(id in names(prop_counts)) {
 cat("\n=== Example 2: Equal Allocation Sampling ===\n")
 
 equal_samples <- spatial_sample_administrative(
-  admin_sf, 
-  total_samples = 100, 
+  admin_sf,
+  total_samples = 100,
   allocation_method = "equal",
   seed = 123
 )
@@ -104,7 +104,7 @@ total_pop <- sum(admin_sf$population)
 for(id in names(custom_counts)) {
     region_pop <- admin_sf$population[admin_sf$admin_id == id]
     expected <- round(100 * (region_pop / total_pop))
-    cat(sprintf("  Region %s: %d samples (Population: %d, Expected: %d)\n", 
+    cat(sprintf("  Region %s: %d samples (Population: %d, Expected: %d)\n",
         id, custom_counts[id], region_pop, expected))
 }
 

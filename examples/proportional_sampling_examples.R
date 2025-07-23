@@ -2,7 +2,7 @@
 # Proportional Sampling Examples
 #
 # 本文件展示了如何使用按比例抽样功能进行常见的区域空间抽样任务
-# This file demonstrates how to use proportional sampling for common 
+# This file demonstrates how to use proportional sampling for common
 # regional spatial sampling tasks
 
 library(sf)
@@ -10,10 +10,10 @@ library(R6)
 
 # 加载必要的抽样功能
 # Load required sampling functions
-source('../R/concurrent-processor.R')
-source('../R/spatial-sampling-engine.R')
-source('../R/administrative-sampler.R')
-source('../R/proportional-sampler.R')
+source('R/concurrent-processor.R')
+source('R/spatial-sampling-engine.R')
+source('R/administrative-sampler.R')
+source('R/proportional-sampler.R')
 
 # ============================================================================
 # 示例1: 人口比例抽样 (Population Proportional Sampling)
@@ -34,7 +34,7 @@ create_example_regions <- function() {
       population = 50000,
       cases = 120
     ),
-    # 工业区 (Industrial zone)  
+    # 工业区 (Industrial zone)
     list(
       name = "工业区",
       coords = matrix(c(2, 0, 4, 0, 4, 2, 2, 2, 2, 0), ncol = 2, byrow = TRUE),
@@ -43,7 +43,7 @@ create_example_regions <- function() {
     ),
     # 住宅区 (Residential area)
     list(
-      name = "住宅区", 
+      name = "住宅区",
       coords = matrix(c(0, 2, 2, 2, 2, 4, 0, 4, 0, 2), ncol = 2, byrow = TRUE),
       population = 80000,
       cases = 200
@@ -63,18 +63,18 @@ create_example_regions <- function() {
       cases = 30
     )
   )
-  
+
   # 转换为sf对象
   # Convert to sf object
   polygons <- lapply(regions, function(r) sf::st_polygon(list(r$coords)))
-  
+
   admin_data <- data.frame(
     region_name = sapply(regions, function(r) r$name),
     population = sapply(regions, function(r) r$population),
     disease_cases = sapply(regions, function(r) r$cases),
     stringsAsFactors = FALSE
   )
-  
+
   admin_sf <- sf::st_sf(admin_data, geometry = sf::st_sfc(polygons), crs = 4326)
   return(admin_sf)
 }
@@ -89,7 +89,7 @@ print(example_regions[, c("region_name", "population", "disease_cases")])
 cat("\n1.1 人口比例抽样 (ratio = 0.001, 即 1:1000):\n")
 population_samples <- spatial_sample_population(
   example_regions,
-  population_column = "population", 
+  population_column = "population",
   ratio = 0.001,
   min_samples = 1,
   max_samples = 100,
@@ -103,7 +103,7 @@ for (region in names(pop_counts)) {
   pop <- example_regions$population[example_regions$region_name == region]
   expected <- round(pop * 0.001)
   actual <- pop_counts[[region]]
-  cat(sprintf("  %s: %d个样本 (人口: %d, 预期: %d)\n", 
+  cat(sprintf("  %s: %d个样本 (人口: %d, 预期: %d)\n",
               region, actual, pop, expected))
 }
 
@@ -118,7 +118,7 @@ cat("\n2.1 疾病病例抽样 (ratio = 0.1, 即 1:10):\n")
 case_samples <- spatial_sample_cases(
   example_regions,
   case_column = "disease_cases",
-  ratio = 0.1, 
+  ratio = 0.1,
   min_samples = 1,
   max_samples = 50,
   seed = 2024
@@ -153,9 +153,9 @@ cat("\n")
 for (i in seq_len(nrow(example_regions))) {
   region <- example_regions$region_name[i]
   population <- example_regions$population[i]
-  
+
   cat(sprintf("%-12s", substr(region, 1, 10)))
-  
+
   for (j in seq_along(ratios)) {
     samples <- spatial_sample_population(
       example_regions[i, ],
@@ -217,7 +217,7 @@ if (!is.null(summary_stats$efficiency)) {
   cat(sprintf("  总人口: %d\n", summary_stats$efficiency$total_variable_value))
   cat(sprintf("  预期样本数: %d\n", summary_stats$efficiency$total_expected_samples))
   cat(sprintf("  实际样本数: %d\n", summary_stats$efficiency$actual_samples))
-  cat(sprintf("  抽样效率: %.2f%%\n", 
+  cat(sprintf("  抽样效率: %.2f%%\n",
               summary_stats$efficiency$sampling_efficiency * 100))
 }
 
@@ -229,10 +229,10 @@ total_points <- nrow(population_samples)
 for (i in seq_len(nrow(population_samples))) {
   point <- population_samples[i, ]
   region_name <- point$region_name
-  
+
   # 找到对应的区域多边形
   region_polygon <- example_regions[example_regions$region_name == region_name, ]
-  
+
   # 检查点是否在多边形内
   within_result <- sf::st_within(point, region_polygon, sparse = FALSE)
   if (!any(within_result)) {
@@ -242,7 +242,7 @@ for (i in seq_len(nrow(population_samples))) {
 
 cat(sprintf("  总测试点数: %d\n", total_points))
 cat(sprintf("  边界违规数: %d\n", boundary_violations))
-cat(sprintf("  边界准确率: %.1f%%\n", 
+cat(sprintf("  边界准确率: %.1f%%\n",
             (total_points - boundary_violations) / total_points * 100))
 
 # ============================================================================

@@ -192,9 +192,9 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
   ),
   
   private = list(
-    #' Setup Parallel Cluster
-    #'
-    #' Initialize parallel processing cluster.
+    # Setup Parallel Cluster
+    #
+    # Initialize parallel processing cluster.
     setup_cluster = function() {
       tryCatch({
         # Create cluster
@@ -218,9 +218,9 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       })
     },
     
-    #' Cleanup Parallel Cluster
-    #'
-    #' Clean up parallel processing resources.
+    # Cleanup Parallel Cluster
+    #
+    # Clean up parallel processing resources.
     cleanup_cluster = function() {
       if (!is.null(self$cluster)) {
         tryCatch({
@@ -232,11 +232,11 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       }
     },
     
-    #' Initialize Progress Tracking
-    #'
-    #' Setup progress bar for processing monitoring.
-    #'
-    #' @param total_units Total number of units to process
+    # Initialize Progress Tracking
+    #
+    # Setup progress bar for processing monitoring.
+    #
+    # @param total_units Total number of units to process
     initialize_progress = function(total_units) {
       if (requireNamespace("progress", quietly = TRUE)) {
         self$progress_bar <- progress::progress_bar$new(
@@ -251,20 +251,20 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       }
     },
     
-    #' Update Progress
-    #'
-    #' Update progress bar with current status.
-    #'
-    #' @param increment Number of units completed
+    # Update Progress
+    #
+    # Update progress bar with current status.
+    #
+    # @param increment Number of units completed
     update_progress = function(increment = 1) {
       if (!is.null(self$progress_bar)) {
         self$progress_bar$tick(increment)
       }
     },
     
-    #' Finalize Progress
-    #'
-    #' Complete progress tracking.
+    # Finalize Progress
+    #
+    # Complete progress tracking.
     finalize_progress = function() {
       if (!is.null(self$progress_bar)) {
         if (!self$progress_bar$finished) {
@@ -274,9 +274,9 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       }
     },
     
-    #' Cleanup Progress
-    #'
-    #' Clean up progress tracking resources.
+    # Cleanup Progress
+    #
+    # Clean up progress tracking resources.
     cleanup_progress = function() {
       if (!is.null(self$progress_bar)) {
         if (!self$progress_bar$finished) {
@@ -286,15 +286,15 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       }
     },
     
-    #' Process Units in Parallel
-    #'
-    #' Execute parallel processing of administrative units.
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with combined results
+    # Process Units in Parallel
+    #
+    # Execute parallel processing of administrative units.
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Named vector of sample counts per unit
+    # @param admin_column Column name for administrative unit identifiers
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with combined results
     process_parallel = function(admin_polygons, sample_counts, admin_column, 
                                 use_gpu) {
       n_units <- nrow(admin_polygons)
@@ -330,15 +330,15 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(private$combine_results(all_results, admin_polygons))
     },
     
-    #' Process Units Sequentially
-    #'
-    #' Execute sequential processing with progress monitoring.
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with combined results
+    # Process Units Sequentially
+    #
+    # Execute sequential processing with progress monitoring.
+    #
+    # @param admin_polygons sf object with administrative polygons
+    # @param sample_counts Named vector of sample counts per unit
+    # @param admin_column Column name for administrative unit identifiers
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with combined results
     process_sequential = function(admin_polygons, sample_counts, admin_column, 
                                   use_gpu) {
       all_results <- list()
@@ -361,13 +361,13 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(private$combine_results(all_results, admin_polygons))
     },
     
-    #' Create Processing Chunks
-    #'
-    #' Divide units into chunks for parallel processing.
-    #'
-    #' @param n_units Total number of units
-    #' @param chunk_size Size of each chunk
-    #' @return List of index vectors for each chunk
+    # Create Processing Chunks
+    #
+    # Divide units into chunks for parallel processing.
+    #
+    # @param n_units Total number of units
+    # @param chunk_size Size of each chunk
+    # @return List of index vectors for each chunk
     create_chunks = function(n_units, chunk_size) {
       chunks <- list()
       start_idx <- 1
@@ -381,15 +381,15 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(chunks)
     },
     
-    #' Process Single Administrative Unit
-    #'
-    #' Process a single administrative unit for sampling.
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param sample_counts Named vector of sample counts per unit
-    #' @param admin_column Column name for administrative unit identifiers
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points for this unit
+    # Process Single Administrative Unit
+    #
+    # Process a single administrative unit for sampling.
+    #
+    # @param polygon sf object with a single polygon
+    # @param sample_counts Named vector of sample counts per unit
+    # @param admin_column Column name for administrative unit identifiers
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points for this unit
     process_single_unit = function(polygon, sample_counts, admin_column, 
                                    use_gpu) {
       admin_id <- as.character(polygon[[admin_column]])
@@ -415,14 +415,14 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(unit_samples)
     },
     
-    #' Generate Points in Polygon
-    #'
-    #' Generate random points within a polygon boundary.
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param n_samples Number of samples to generate
-    #' @param use_gpu Logical for GPU acceleration
-    #' @return sf object with sampled points
+    # Generate Points in Polygon
+    #
+    # Generate random points within a polygon boundary.
+    #
+    # @param polygon sf object with a single polygon
+    # @param n_samples Number of samples to generate
+    # @param use_gpu Logical for GPU acceleration
+    # @return sf object with sampled points
     generate_points_in_polygon = function(polygon, n_samples, use_gpu) {
       bbox <- sf::st_bbox(polygon)
       bounds <- c(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"])
@@ -434,14 +434,14 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(points_in_polygon)
     },
     
-    #' Rejection Sampling for Polygon
-    #'
-    #' Use rejection sampling to generate points within polygon boundaries.
-    #'
-    #' @param polygon sf object with a single polygon
-    #' @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
-    #' @param n_samples Number of samples to generate
-    #' @return sf object with sampled points
+    # Rejection Sampling for Polygon
+    #
+    # Use rejection sampling to generate points within polygon boundaries.
+    #
+    # @param polygon sf object with a single polygon
+    # @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
+    # @param n_samples Number of samples to generate
+    # @return sf object with sampled points
     rejection_sampling = function(polygon, bounds, n_samples) {
       points_in_polygon <- NULL
       attempts <- 1
@@ -471,13 +471,13 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(private$finalize_polygon_samples(points_in_polygon, n_samples))
     },
     
-    #' Finalize Polygon Samples
-    #'
-    #' Finalize the sampled points to match requested count.
-    #'
-    #' @param points_in_polygon sf object with points in polygon
-    #' @param n_samples Number of samples requested
-    #' @return Final sf object with correct number of samples
+    # Finalize Polygon Samples
+    #
+    # Finalize the sampled points to match requested count.
+    #
+    # @param points_in_polygon sf object with points in polygon
+    # @param n_samples Number of samples requested
+    # @return Final sf object with correct number of samples
     finalize_polygon_samples = function(points_in_polygon, n_samples) {
       if (is.null(points_in_polygon) || nrow(points_in_polygon) == 0) {
         return(NULL)
@@ -500,13 +500,13 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(points_in_polygon)
     },
     
-    #' Generate Random Points in Bounds
-    #'
-    #' Generate random points within specified bounds.
-    #'
-    #' @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
-    #' @param n Number of points to generate
-    #' @return sf object with random points
+    # Generate Random Points in Bounds
+    #
+    # Generate random points within specified bounds.
+    #
+    # @param bounds Bounding box as c(xmin, ymin, xmax, ymax)
+    # @param n Number of points to generate
+    # @return sf object with random points
     generate_random_points_in_bounds = function(bounds, n) {
       x <- runif(n, bounds[1], bounds[3])
       y <- runif(n, bounds[2], bounds[4])
@@ -520,13 +520,13 @@ ConcurrentProcessor <- R6::R6Class("ConcurrentProcessor",
       return(points)
     },
     
-    #' Combine Results
-    #'
-    #' Combine results from multiple processing units.
-    #'
-    #' @param all_results List of sf objects with results
-    #' @param admin_polygons Original administrative polygons for CRS reference
-    #' @return Combined sf object
+    # Combine Results
+    #
+    # Combine results from multiple processing units.
+    #
+    # @param all_results List of sf objects with results
+    # @param admin_polygons Original administrative polygons for CRS reference
+    # @return Combined sf object
     combine_results = function(all_results, admin_polygons) {
       if (length(all_results) == 0) {
         return(sf::st_sf(geometry = sf::st_sfc(crs = sf::st_crs(admin_polygons))))
