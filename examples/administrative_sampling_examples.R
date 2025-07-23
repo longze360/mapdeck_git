@@ -9,9 +9,9 @@ library(R6)
 # Load necessary sampling functions
 # Note: Adjust the path if running from a different directory.
 # The '../' assumes this script is run from the 'examples' directory.
-source('../R/spatial-sampling/concurrent-processor.R')
+source('../R/concurrent-processor.R')
 source('../R/spatial-sampling-engine.R')
-source('../R/spatial-sampling/administrative-sampler.R')
+source('../R/administrative-sampler.R')
 
 # ============================================================================
 # Example 1: Basic Proportional Sampling
