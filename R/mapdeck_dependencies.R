@@ -75,6 +75,7 @@ mapdeck_dependencies <- function() {
 	c(
 		mapdeck_dep_functions()
 		, deckgl_min_js()
+		, provider_dependencies_js()  # Add provider dependencies manager
 		, mapdeck_dep_legend()
 		, mapdeck_dep_title()
 		, mapdeck_dep_location()
@@ -220,6 +221,19 @@ mapdeck_dep_title <- function() {
 	)
 }
 
+## Provider dependencies manager
+provider_dependencies_js <- function() {
+	list(
+		createHtmlDependency(
+			name = "provider-dependencies",
+			version = "0.0.1",
+			src = system.file("htmlwidgets/lib/", package = "mapdeck"),
+			script = c("provider-dependencies.js"),
+			all_files = FALSE
+		)
+	)
+}
+
 ## Leaflet.js dependencies
 ## https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
 ## https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
@@ -273,6 +287,32 @@ openlayers_deckgl_adapter <- function() {
 			version = "0.0.1",
 			src = system.file("htmlwidgets/lib/openlayers/", package = "mapdeck"),
 			script = c("openlayers-adapter.js"),
+			all_files = FALSE
+		)
+	)
+}
+
+## Gaode Maps adapter
+gaode_adapter <- function() {
+	list(
+		createHtmlDependency(
+			name = "gaode-adapter",
+			version = "0.0.1",
+			src = system.file("htmlwidgets/lib/gaode/", package = "mapdeck"),
+			script = c("gaode-adapter.js"),
+			all_files = FALSE
+		)
+	)
+}
+
+## Baidu Maps adapter
+baidu_adapter <- function() {
+	list(
+		createHtmlDependency(
+			name = "baidu-adapter",
+			version = "0.0.1",
+			src = system.file("htmlwidgets/lib/baidu/", package = "mapdeck"),
+			script = c("baidu-adapter.js"),
 			all_files = FALSE
 		)
 	)

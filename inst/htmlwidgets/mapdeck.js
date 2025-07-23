@@ -36,6 +36,11 @@ HTMLWidgets.widget({
 				return(obj);
 			}
 			*/
+			
+			// Add provider to x if not present (for backward compatibility)
+			if (!x.provider) {
+			  x.provider = "mapbox";
+			}
 
 			// issue 364
 			function buildDragObject(info) {
@@ -81,23 +86,59 @@ HTMLWidgets.widget({
 				})
 
        // Handle different providers
-       if (x.provider === 'leaflet') {
-         // Initialize Leaflet map with deck.gl overlay
-         const leafletMapData = window.MapdeckLeafletAdapter.initializeLeafletMap(el.id, x);
-         deckgl = leafletMapData.deckOverlay;
+       if (x.provider && x.provider !== 'mapbox') {
+         // Initialize provider using the provider dependencies manager
+         window.MapdeckProviderDependencies.initializeProvider(el.id, x.provider, x)
+           .then(providerData => {
+             if (x.provider === 'leaflet') {
+               deckgl = providerData.deckOverlay;
+               window[el.id + 'map'] = deckgl;
+               window[el.id + 'leafletMap'] = providerData.leafletMap;
+             } else if (x.provider === 'openlayers') {
+               deckgl = providerData.deck;
+               window[el.id + 'map'] = deckgl;
+               window[el.id + 'olMap'] = providerData.map;
+             } else if (x.provider === 'gaode') {
+               deckgl = providerData.deck;
+               window[el.id + 'map'] = deckgl;
+               window[el.id + 'gaodeMap'] = providerData.map;
+             } else if (x.provider === 'baidu') {
+               deckgl = providerData.deck;
+               window[el.id + 'map'] = deckgl;
+               window[el.id + 'baiduMap'] = providerData.map;
+             }
+             
+             // Initialize map after provider is loaded
+             md_initialise_map(el, x);
+           })
+           .catch(error => {
+             console.error(`Failed to initialize provider ${x.provider}:`, error);
+             // Fallback to default deck.gl with no map
+             deckgl = new deck.DeckGL({
+               views: [mapView],
+               map: false,
+               container: el.id,
+               initialViewState: initialViewState,
+               layers: [],
+               controller: true
+             });
+             window[el.id + 'map'] = deckgl;
+             md_initialise_map(el, x);
+           });
+           
+         // Return early as initialization will be completed asynchronously
+         return;
+       } else if (x.access_token === null) {
+         deckgl = new deck.DeckGL({
+           views: [mapView],
+           map: false,
+           container: el.id,
+           initialViewState: initialViewState,
+           layers: [],
+           controller: true
+           //onLayerHover: setTooltip
+         });
          window[el.id + 'map'] = deckgl;
-         window[el.id + 'leafletMap'] = leafletMapData.leafletMap;
-       } else if( x.access_token === null ) {
-       	 deckgl = new deck.DeckGL({
-       	 	  views: [mapView],
-       	 	  map: false,
-			      container: el.id,
-			      initialViewState: initialViewState,
-			      layers: [],
-			      controller: true
-			      //onLayerHover: setTooltip
-			   });
-			   window[el.id + 'map'] = deckgl;
        } else {
         deckgl = new deck.DeckGL({
         	  views: [mapView],
@@ -186,7 +227,12 @@ HTMLWidgets.widget({
 			  window[el.id + 'map'] = deckgl;
 
        } // end if { access_token } else { }
-				md_initialise_map(el, x);
+				
+				// Only initialize map here for mapbox or no-provider cases
+				// For other providers, initialization happens after async loading
+				if (!x.provider || x.provider === 'mapbox') {
+				  md_initialise_map(el, x);
+				}
       },
 
       resize: function(width, height) {

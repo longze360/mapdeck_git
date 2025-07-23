@@ -846,17 +846,41 @@ create_layer_feature_mapping <- function(layer_config, from_provider, to_provide
   return(mapping)
 }
 
+# Global coordinate transformer instance
+.coordinate_transformer <- NULL
+
+# Global coordinate detector instance
+.coordinate_detector <- NULL
+
 #' Get Coordinate Transformer
 #'
-#' @return Coordinate transformer object
+#' Get the global coordinate transformer instance, creating it if necessary.
+#'
+#' @return CoordinateTransformer instance
+#'
+#' @examples
+#' \donttest{
+#' # Get global transformer
+#' transformer <- get_coordinate_transformer()
+#' coords <- transformer$transform(c(116.3974, 39.9093), "WGS84", "GCJ02")
+#' }
+#'
+#' @export
 get_coordinate_transformer <- function() {
-  # This would return the coordinate transformation service
-  # For now, return a mock object
-  list(
-    transform_coordinates = function(data, from_crs, to_crs) {
-      return(data)
-    }
-  )
+  if (is.null(.coordinate_transformer)) {
+    tryCatch({
+      .coordinate_transformer <<- CoordinateTransformer$new()
+    }, error = function(e) {
+      # Fallback to mock if CoordinateTransformer is not available
+      warning("CoordinateTransformer not available, using mock implementation")
+      .coordinate_transformer <<- list(
+        transform_coordinates = function(data, from_crs, to_crs) {
+          return(data)
+        }
+      )
+    })
+  }
+  return(.coordinate_transformer)
 }
 
 # Define %||% operator if not already defined

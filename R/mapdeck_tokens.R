@@ -285,73 +285,7 @@ get_access_token <- function(provider = "mapbox", scope = "default") {
 }
 
 
-#' Get Access Token
-#'
-#' Retrieves the access token for a specific provider
-#'
-#' @param provider Character string identifying the provider (default: "mapbox")
-#' @param scope Character string for token scope (default: "default")
-#'
-#' @details
-#' This function retrieves tokens from the multi-provider system and falls back
-#' to legacy options for backward compatibility. It also checks environment
-#' variables if no stored token is found.
-#'
-#' @examples
-#' \donttest{
-#' # Get Mapbox token
-#' token <- get_access_token("mapbox")
-#' 
-#' # Get token for other providers
-#' gaode_token <- get_access_token("gaode")
-#' }
-#'
-#' @export
-get_access_token <- function(provider = "mapbox", scope = "default") {
-  # Input validation
-  if (!is.character(provider) || length(provider) != 1) {
-    stop("Provider must be a single character string")
-  }
-  
-  if (!is.character(scope) || length(scope) != 1) {
-    stop("Scope must be a single character string")
-  }
-  
-  # Try to get token from new multi-provider system
-  tryCatch({
-    token_store <- get_token_store()
-    token <- token_store$get_token(provider, scope)
-    if (!is.null(token) && !is.na(token) && nchar(trimws(token)) > 0) {
-      return(token)
-    }
-  }, error = function(e) {
-    # Continue to other methods if token store fails
-  })
-  
-  # Fall back to legacy options system for Mapbox
-  if (provider == "mapbox" && scope == "default") {
-    options <- getOption("mapdeck")
-    if (!is.null(options) && !is.null(options[["mapdeck"]]) && 
-        !is.null(options[["mapdeck"]][["mapbox"]])) {
-      token <- options[["mapdeck"]][["mapbox"]]
-      if (!is.na(token) && nchar(trimws(token)) > 0) {
-        return(token)
-      }
-    }
-  }
-  
-  # Check environment variables
-  env_vars <- get_provider_env_vars(provider)
-  for (var in env_vars) {
-    token <- Sys.getenv(var, unset = NA)
-    if (!is.na(token) && nchar(trimws(token)) > 0) {
-      return(token)
-    }
-  }
-  
-  # Return NULL if no token found
-  return(NULL)
-}
+
 
 #' Get Provider Environment Variables
 #'

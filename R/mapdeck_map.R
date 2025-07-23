@@ -108,8 +108,8 @@ mapdeck <- function(
   )
   
   # Use provider system for all providers
-  if (provider %in% c("mapbox", "leaflet")) {
-    # Try to use provider system, fall back to legacy for Mapbox if needed
+  if (provider %in% c("mapbox", "leaflet", "openlayers", "gaode", "baidu")) {
+    # Try to use provider system
     tryCatch({
       # Create provider instance
       map_provider <- create_provider(provider, provider_config)
@@ -124,16 +124,19 @@ mapdeck <- function(
     }, error = function(e) {
       if (provider == "mapbox") {
         # Fall back to legacy implementation for Mapbox backward compatibility
-        warning("Provider system not fully initialized, using legacy Mapbox implementation")
+        warning(sprintf("Provider system error for Mapbox, using legacy implementation: %s", e$message))
+        # Continue to legacy implementation below
       } else {
-        # For non-Mapbox providers, re-throw the error
-        stop(sprintf("Failed to initialize %s provider: %s", provider, e$message))
+        # For non-Mapbox providers, provide helpful error message
+        if (grepl("not available yet", e$message) || grepl("not registered", e$message)) {
+          stop(sprintf("Provider '%s' implementation is not yet complete. Please use 'mapbox' provider for now.", provider))
+        } else {
+          stop(sprintf("Failed to initialize %s provider: %s", provider, e$message))
+        }
       }
     })
-  } else if (provider %in% c("openlayers", "gaode", "baidu")) {
-    stop(sprintf("Provider '%s' is not yet implemented. Available providers: mapbox, leaflet", provider))
   } else {
-    stop(sprintf("Unknown provider '%s'. Available providers: mapbox, leaflet", provider))
+    stop(sprintf("Unknown provider '%s'. Available providers: mapbox, leaflet, openlayers, gaode, baidu", provider))
   }
   
   # Legacy implementation (backward compatibility)
@@ -173,13 +176,24 @@ mapdeck <- function(
 
   mapdeckmap <- add_dependencies( mapdeckmap )
 
+  # Add provider-specific dependencies
+  provider_deps <- switch(provider,
+    "mapbox" = mapboxgl(),
+    "leaflet" = c(leaflet_js(), leaflet_deckgl_adapter()),
+    "openlayers" = c(openlayers_js(), openlayers_deckgl_adapter()),
+    "gaode" = gaode_adapter(),
+    "baidu" = baidu_adapter(),
+    mapboxgl()  # Default to mapbox
+  )
+  
   mapdeckmap$dependencies <- c(
-  	if ('h3' %in% libraries) mapdeckH3JSDependency() else NULL
-  	, mapdeckmap$dependencies
-  	, mapboxgl()
-  	, mapdeck_js()
-  	, htmlwidgets_js()
-  	)
+    if ('h3' %in% libraries) mapdeckH3JSDependency() else NULL,
+    mapdeckmap$dependencies,
+    provider_deps,
+    provider_dependencies_js(),  # Always include provider dependencies manager
+    mapdeck_js(),
+    htmlwidgets_js()
+  )
 
   return(mapdeckmap)
 }

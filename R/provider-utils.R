@@ -412,6 +412,30 @@ normalize_leaflet_style <- function(style) {
   })
 }
 
+#' Normalize Leaflet Tile Provider
+#'
+#' @param provider Character string containing tile provider name
+#' @return Normalized tile provider name
+normalize_leaflet_tile_provider <- function(provider) {
+  
+  # Common Leaflet tile provider aliases
+  aliases <- list(
+    "osm" = "OpenStreetMap",
+    "openstreetmap" = "OpenStreetMap",
+    "cartodb" = "CartoDB.Positron",
+    "stamen" = "Stamen.Terrain",
+    "esri" = "Esri.WorldImagery"
+  )
+  
+  provider_lower <- tolower(provider)
+  
+  if (provider_lower %in% names(aliases)) {
+    return(aliases[[provider_lower]])
+  }
+  
+  return(provider)
+}
+
 #' Normalize OpenLayers Style
 #'
 #' @param style Character string containing OpenLayers source name
