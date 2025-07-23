@@ -7,6 +7,9 @@
 #' @name provider-factory
 NULL
 
+# Global provider factory instance
+.provider_factory <- NULL
+
 #' Provider Registry Class
 #'
 #' R6 class for managing the registry of available map providers.
@@ -25,14 +28,10 @@ NULL
 #' registry <- ProviderRegistry$new()
 #' registry$register_provider("custom", CustomProvider, custom_config)
 #' }
-#'
 #' @export
 ProviderRegistry <- R6::R6Class("ProviderRegistry",
   public = list(
-    #' @field providers Registered provider configurations
     providers = NULL,
-    
-    #' @field factories Provider factory functions
     factories = NULL,
     
     #' Initialize Provider Registry
@@ -186,51 +185,31 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
         # Use tryCatch to handle missing provider classes gracefully
         if (name == "mapbox") {
           tryCatch({
-            if (exists("MapboxProvider")) {
-              self$factories[[name]] <- MapboxProvider
-            } else {
-              self$factories[[name]] <- NULL
-            }
+            self$factories[[name]] <- get("MapboxProvider", envir = .GlobalEnv, inherits = TRUE)
           }, error = function(e) {
             self$factories[[name]] <- NULL
           })
         } else if (name == "leaflet") {
           tryCatch({
-            if (exists("LeafletProvider")) {
-              self$factories[[name]] <- LeafletProvider
-            } else {
-              self$factories[[name]] <- NULL
-            }
+            self$factories[[name]] <- get("LeafletProvider", envir = .GlobalEnv, inherits = TRUE)
           }, error = function(e) {
             self$factories[[name]] <- NULL
           })
         } else if (name == "openlayers") {
           tryCatch({
-            if (exists("OpenLayersProvider")) {
-              self$factories[[name]] <- OpenLayersProvider
-            } else {
-              self$factories[[name]] <- NULL
-            }
+            self$factories[[name]] <- get("OpenLayersProvider", envir = .GlobalEnv, inherits = TRUE)
           }, error = function(e) {
             self$factories[[name]] <- NULL
           })
         } else if (name == "gaode") {
           tryCatch({
-            if (exists("GaodeProvider")) {
-              self$factories[[name]] <- GaodeProvider
-            } else {
-              self$factories[[name]] <- NULL
-            }
+            self$factories[[name]] <- get("GaodeProvider", envir = .GlobalEnv, inherits = TRUE)
           }, error = function(e) {
             self$factories[[name]] <- NULL
           })
         } else if (name == "baidu") {
           tryCatch({
-            if (exists("BaiduProvider")) {
-              self$factories[[name]] <- BaiduProvider
-            } else {
-              self$factories[[name]] <- NULL
-            }
+            self$factories[[name]] <- get("BaiduProvider", envir = .GlobalEnv, inherits = TRUE)
           }, error = function(e) {
             self$factories[[name]] <- NULL
           })
@@ -262,11 +241,9 @@ ProviderRegistry <- R6::R6Class("ProviderRegistry",
 #' factory <- ProviderFactory$new()
 #' provider <- factory$create_provider("mapbox", list(token = "your_token"))
 #' }
-#'
 #' @export
 ProviderFactory <- R6::R6Class("ProviderFactory",
   public = list(
-    #' @field registry Provider registry instance
     registry = NULL,
     
     #' Initialize Provider Factory
@@ -430,10 +407,20 @@ ProviderFactory <- R6::R6Class("ProviderFactory",
 #'
 #' @export
 get_provider_factory <- function() {
-  if (is.null(.provider_factory)) {
-    .provider_factory <<- ProviderFactory$new()
-  }
-  return(.provider_factory)
+  tryCatch({
+    if (is.null(.provider_factory)) {
+      .provider_factory <<- ProviderFactory$new()
+    }
+    return(.provider_factory)
+  }, error = function(e) {
+    # Handle locked binding error during development
+    if (grepl("locked binding", e$message)) {
+      # Create a new instance without assigning to global variable
+      return(ProviderFactory$new())
+    } else {
+      stop(e)
+    }
+  })
 }
 
 #' Create Provider Instance

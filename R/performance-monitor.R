@@ -14,10 +14,6 @@ NULL
 #' The PerformanceMonitor class provides detailed performance tracking,
 #' benchmarking, and analysis capabilities for spatial sampling operations.
 #'
-#' @field metrics List of performance metrics
-#' @field benchmarks List of benchmark results
-#' @field profiling_enabled Logical indicating if profiling is active
-#'
 #' @export
 PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
   public = list(
@@ -298,9 +294,6 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
   ),
   
   private = list(
-    #' Update Summary Statistics
-    #'
-    #' Update internal summary statistics.
     update_summary_stats = function() {
       ops <- self$metrics$operations
       
@@ -329,12 +322,6 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
       }
     },
     
-    #' Generate Test Data
-    #'
-    #' Generate test data for benchmarking.
-    #'
-    #' @param size Number of points to generate
-    #' @return Test data frame
     generate_test_data = function(size) {
       data.frame(
         longitude = runif(size, -180, 180),
@@ -345,12 +332,6 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
       )
     },
     
-    #' Format Benchmark Results
-    #'
-    #' Format benchmark results for display.
-    #'
-    #' @param results Raw benchmark results
-    #' @return Formatted results data frame
     format_benchmark_results = function(results) {
       result_df <- data.frame(
         data_size = numeric(0),
@@ -379,18 +360,12 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
       return(result_df)
     },
     
-    #' Calculate Trend
-    #'
-    #' Calculate performance trend from recent times.
-    #'
-    #' @param times Vector of execution times
-    #' @return Trend description
     calculate_trend = function(times) {
       if (length(times) < 3) return("insufficient_data")
       
       # Simple linear trend
       x <- seq_along(times)
-      trend_coef <- coef(lm(times ~ x))[2]
+      trend_coef <- coef(lm(times ~ x))
       
       if (abs(trend_coef) < 0.001) {
         return("stable")
@@ -401,12 +376,6 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
       }
     },
     
-    #' Generate Text Report
-    #'
-    #' Generate text-based performance report.
-    #'
-    #' @param summary Performance summary
-    #' @return Text report string
     generate_text_report = function(summary) {
       report <- c(
         "=== Spatial Sampling Performance Report ===",
@@ -441,12 +410,6 @@ PerformanceMonitor <- R6::R6Class("PerformanceMonitor",
       return(paste(report, collapse = "\n"))
     },
     
-    #' Generate HTML Report
-    #'
-    #' Generate HTML-based performance report.
-    #'
-    #' @param summary Performance summary
-    #' @return HTML report string
     generate_html_report = function(summary) {
       # Simplified HTML report
       html <- paste0(

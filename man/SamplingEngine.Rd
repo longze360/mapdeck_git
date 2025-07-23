@@ -29,12 +29,6 @@ grid_samples <- engine$spatial_sample_grid(data, grid_size = 0.01)
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{gpu_enabled}}{Logical indicating if GPU acceleration is available}
-
-\item{\code{performance_stats}}{List containing performance metrics}
-
-\item{\code{fallback_threshold}}{Numeric threshold for switching to CPU fallback}
-
 \item{\code{gpu_enabled}}{Logical indicating GPU availability}
 
 \item{\code{performance_stats}}{Performance monitoring data}
@@ -206,9 +200,6 @@ Reset all performance counters to zero.
 
 \subsection{Returns}{
 Invisible self for method chaining
-Detect GPU Support
-
-Check if GPU acceleration is available for spatial operations.
 }
 }
 \if{html}{\out{<hr>}}

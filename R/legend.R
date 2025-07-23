@@ -1,18 +1,3 @@
-#' Clear Legend
-#'
-#' Clears the legend for a given layer_id
-#'
-#' @param map the map from which you want to clear the legend.
-#' @param layer_id single value specifying an id for the layer. Use this value to
-#' distinguish between shape layers of the same type. Layers with the same id are likely
-#' to conflict and not plot correctly
-#'
-#' @export
-clear_legend <- function( map, layer_id ) {
-	invoke_method( map, "md_clear_legend", map_type(map), layer_id );
-}
-
-
 #' Mapdeck Legend
 #'
 #' Constructs legend elements into the correct JSON format for plotting on the map

@@ -31,16 +31,9 @@ NULL
 #' @export
 IMapProvider <- R6::R6Class("IMapProvider",
   public = list(
-    #' @field provider_name Character string identifying the provider
     provider_name = NULL,
-    
-    #' @field config Provider configuration list
     config = NULL,
-    
-    #' @field capabilities List of supported features
     capabilities = NULL,
-    
-    #' @field initialized Logical indicating initialization status
     initialized = FALSE,
     
     #' Initialize Provider

@@ -29,18 +29,6 @@ This ensures consistent behavior across different mapping backends.
 \item{\code{capabilities}}{List of supported features and limitations}
 
 \item{\code{initialized}}{Logical indicating if provider is initialized}
-
-\item{\code{provider_name}}{Character string identifying the provider}
-
-\item{\code{config}}{Provider configuration list}
-
-\item{\code{capabilities}}{List of supported features}
-
-\item{\code{initialized}}{Logical indicating initialization status
-Initialize Provider
-
-Initialize the map provider with configuration settings.
-Note: This is separate from R6's initialize() constructor method.}
 }
 \if{html}{\out{</div>}}
 }

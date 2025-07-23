@@ -18,13 +18,10 @@ NULL
 #' samples based on regional variables (population, cases, etc.) with
 #' support for numeric sampling ratios like 1.0, 0.1, 0.01, 2.0, etc.
 #'
-#' @field sampling_ratio Numeric sampling ratio (e.g., 0.1 for 10% sampling)
-#' @field base_sampler Underlying administrative sampler
-#'
 #' @export
 ProportionalRegionalSampler <- R6::R6Class("ProportionalRegionalSampler",
   public = list(
-    #' @field sampling_ratio Sampling ratio for proportional sampling
+    #' @field sampling_ratio Numeric sampling ratio (e.g., 0.1 for 10% sampling)
     sampling_ratio = NULL,
     
     #' @field base_sampler Underlying administrative sampler
@@ -233,13 +230,7 @@ ProportionalRegionalSampler <- R6::R6Class("ProportionalRegionalSampler",
   ),
   
   private = list(
-    #' Validate Ratio Sampling Inputs
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param variable_column Column name containing the variable
-    #' @param ratio Numeric sampling ratio
-    #' @param min_samples Minimum samples per region
-    #' @param max_samples Maximum samples per region
+    # Validate Ratio Sampling Inputs
     validate_ratio_inputs = function(admin_polygons, variable_column, 
                                      ratio, min_samples, max_samples) {
       if (!variable_column %in% names(admin_polygons)) {
@@ -269,14 +260,7 @@ ProportionalRegionalSampler <- R6::R6Class("ProportionalRegionalSampler",
       }
     },
     
-    #' Calculate Ratio-based Sample Counts
-    #'
-    #' @param admin_polygons sf object with administrative polygons
-    #' @param variable_column Column name containing the variable
-    #' @param ratio Numeric sampling ratio
-    #' @param min_samples Minimum samples per region
-    #' @param max_samples Maximum samples per region
-    #' @return Named vector of sample counts
+    # Calculate Ratio-based Sample Counts
     calculate_ratio_samples = function(admin_polygons, variable_column,
                                        ratio, min_samples, max_samples) {
       variable_values <- admin_polygons[[variable_column]]

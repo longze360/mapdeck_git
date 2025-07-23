@@ -17,7 +17,6 @@ R6 class for managing the registry of available map providers.
 registry <- ProviderRegistry$new()
 registry$register_provider("custom", CustomProvider, custom_config)
 }
-
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -25,13 +24,6 @@ registry$register_provider("custom", CustomProvider, custom_config)
 \item{\code{providers}}{List of registered provider configurations}
 
 \item{\code{factories}}{List of provider factory functions}
-
-\item{\code{providers}}{Registered provider configurations}
-
-\item{\code{factories}}{Provider factory functions
-Initialize Provider Registry
-
-Create a new provider registry instance.}
 }
 \if{html}{\out{</div>}}
 }

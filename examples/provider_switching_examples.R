@@ -1,11 +1,11 @@
-#' Provider Switching Examples
-#'
-#' This file demonstrates how to use the provider switching functionality
-#' to seamlessly switch between different map providers while preserving
-#' layers and map state.
+# Provider Switching Examples
+#
+# This file demonstrates how to use the provider switching functionality
+# to seamlessly switch between different map providers while preserving
+# layers and map state.
 
-# Load required libraries
 library(mapdeck)
+library(sf)
 
 # Example 1: Basic Provider Switching
 #' This example shows how to switch from Mapbox to Leaflet

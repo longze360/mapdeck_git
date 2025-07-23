@@ -15,9 +15,6 @@ NULL
 #' tokens for different mapping providers. It supports environment variable
 #' loading, validation, and provider-specific token management.
 #'
-#' @field tokens Named list of provider tokens
-#' @field encrypted Logical indicating if tokens should be encrypted
-#' @field env_vars List of environment variable names to check
 #'
 #' @examples
 #' \donttest{
@@ -229,16 +226,10 @@ TokenStore <- R6::R6Class("TokenStore",
         
         for (var_name in var_names) {
           if (var_name %in% names(env_vars) && nchar(env_vars[[var_name]]) > 0) {
-            # Only set if not already set (check directly in tokens to avoid validation)
-            if (is.null(self$tokens[[provider]]) || is.null(self$tokens[[provider]][["default"]])) {
-              # Try to set token, but catch validation errors during initialization
-              tryCatch({
+            # Only set if not already set
+            if (is.null(self$tokens[[provider]])) {
                 self$set_token(provider, env_vars[[var_name]])
                 break  # Use first found token
-              }, error = function(e) {
-                # Silently skip providers that aren't registered yet
-                NULL
-              })
             }
           }
         }
@@ -392,8 +383,18 @@ TokenStore <- R6::R6Class("TokenStore",
 #'
 #' @export
 get_token_store <- function(encrypted = FALSE) {
-  if (is.null(.token_store)) {
-    .token_store <<- TokenStore$new(encrypted = encrypted)
-  }
-  return(.token_store)
+  tryCatch({
+    if (is.null(.token_store)) {
+      .token_store <<- TokenStore$new(encrypted = encrypted)
+    }
+    return(.token_store)
+  }, error = function(e) {
+    # Handle locked binding error during development
+    if (grepl("locked binding", e$message)) {
+      # Create a new instance without assigning to global variable
+      return(TokenStore$new(encrypted = encrypted))
+    } else {
+      stop(e)
+    }
+  })
 }

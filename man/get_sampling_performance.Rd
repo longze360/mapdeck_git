@@ -2,36 +2,50 @@
 % Please edit documentation in R/spatial-sampling-engine.R
 \name{get_sampling_performance}
 \alias{get_sampling_performance}
-\title{Get Sampling Engine Performance Statistics}
+\title{Get Sampling Performance Statistics}
 \usage{
-get_sampling_performance(engine = NULL)
+get_sampling_performance(engine = NULL, reset = FALSE)
 }
 \arguments{
-\item{engine}{Optional SamplingEngine instance. If NULL, returns
-global performance summary}
+\item{engine}{Optional SamplingEngine instance (uses global engine if NULL)}
+
+\item{reset}{Logical indicating if statistics should be reset after retrieval}
 }
 \value{
-List containing performance metrics:
-  - gpu_operations: Number of GPU operations performed
-  - cpu_operations: Number of CPU operations performed
-  - total_samples: Total number of samples processed
-  - avg_gpu_time: Average GPU operation time in seconds
-  - avg_cpu_time: Average CPU operation time in seconds
-  - gpu_efficiency: GPU vs CPU performance ratio
+List containing performance statistics:
+  \itemize{
+    \item gpu_operations: Number of operations using GPU acceleration
+    \item cpu_operations: Number of operations using CPU processing
+    \item total_samples: Total number of samples processed
+    \item avg_gpu_time: Average time per GPU operation (seconds)
+    \item avg_cpu_time: Average time per CPU operation (seconds)
+    \item gpu_speedup: Speed improvement factor when using GPU
+    \item memory_usage: Peak memory usage during operations
+  }
 }
 \description{
-Retrieve performance statistics from a sampling engine or create
-a summary of global sampling performance.
+This function returns detailed performance metrics for spatial sampling
+operations, including GPU vs CPU usage, timing statistics, and throughput
+measurements. Useful for optimizing sampling performance and monitoring
+GPU acceleration effectiveness.
+}
+\details{
+Retrieve performance statistics for spatial sampling operations.
 }
 \examples{
 \donttest{
-# Get statistics from specific engine
-engine <- create_sampling_engine()
-samples <- spatial_sample_random(data, n = 1000, engine = engine)
-stats <- get_sampling_performance(engine)
-
-# Print performance summary
+# Get performance statistics
+stats <- get_sampling_performance()
 print(stats)
+
+# Get statistics and reset counters
+stats <- get_sampling_performance(reset = TRUE)
+
+# Check GPU acceleration effectiveness
+if (stats$gpu_operations > 0 && stats$cpu_operations > 0) {
+  speedup <- stats$avg_cpu_time / stats$avg_gpu_time
+  cat("GPU provides", round(speedup, 2), "x speedup\n")
+}
 }
 
 }

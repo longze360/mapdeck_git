@@ -112,6 +112,7 @@ doResolveFormula = function(data, f) {
 }
 
 
+#' @export
 doResolveFormula.data.frame = function(data, f) {
 	eval(f[[2]], data, environment(f))
 }

@@ -23,12 +23,6 @@ token <- store$get_token("mapbox")
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{tokens}}{Named list of provider tokens}
-
-\item{\code{encrypted}}{Logical indicating if tokens should be encrypted}
-
-\item{\code{env_vars}}{List of environment variable names to check}
-
 \item{\code{tokens}}{Provider token storage}
 
 \item{\code{encrypted}}{Encryption flag}

@@ -1,0 +1,895 @@
+---
+title: "Advanced Multi-Provider Features"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Advanced Multi-Provider Features}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+# Advanced Multi-Provider Features
+
+This guide covers advanced features of the multi-provider mapdeck system, including provider switching, coordinate transformations, performance optimization, and integration patterns.
+
+## Provider Switching
+
+### Dynamic Provider Switching
+
+Switch between providers while preserving your visualization:
+
+```{r}
+library(mapdeck)
+
+# Create initial map with layers
+original_map <- mapdeck(
+  provider = "mapbox",
+  style = "streets",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+) %>%
+  add_scatterplot(
+    data = capitals,
+    lon = "lon",
+    lat = "lat",
+    radius = 50000,
+    fill_colour = "country",
+    tooltip = c("capital_city", "country")
+  ) %>%
+  add_polygon(
+    data = melbourne,
+    fill_colour = "SA2_NAME",
+    fill_opacity = 0.5,
+    layer_id = "boundaries"
+  )
+
+# Switch to Leaflet while preserving all layers
+leaflet_map <- update_provider(original_map, "leaflet")
+
+# Switch to OpenLayers with custom configuration
+openlayers_map <- update_provider(
+  original_map,
+  "openlayers",
+  config = list(
+    projection = "EPSG:3857",
+    source_type = "OSM"
+  )
+)
+```
+
+### Compatibility Checking
+
+Check compatibility before switching providers:
+
+```{r}
+# Check compatibility between providers
+compatibility <- check_provider_compatibility("mapbox", "leaflet")
+
+print("Compatibility Results:")
+print(paste("Compatible:", compatibility$compatible))
+print(paste("Reason:", compatibility$reason))
+
+if (length(compatibility$issues) > 0) {
+  print("Issues:")
+  for (issue in compatibility$issues) {
+    print(paste("  -", issue))
+  }
+}
+
+if (length(compatibility$degraded_features) > 0) {
+  print("Features that will be degraded:")
+  for (feature in compatibility$degraded_features) {
+    print(paste("  -", feature))
+  }
+}
+
+# Check coordinate transformation requirements
+print(paste("Coordinate transformation required:", 
+           compatibility$coordinate_transformation_required))
+```
+
+### Graceful Degradation
+
+Handle provider limitations automatically:
+
+```{r}
+# Create 3D visualization with Mapbox
+mapbox_3d <- mapdeck(
+  provider = "mapbox",
+  style = "dark",
+  location = c(-122.4194, 37.7749),
+  zoom = 15,
+  pitch = 60,
+  bearing = 45
+) %>%
+  add_column(
+    data = capitals,
+    lon = "lon",
+    lat = "lat",
+    elevation = "population",
+    fill_colour = "country",
+    radius = 10000
+  )
+
+# Switch to Leaflet - 3D features are gracefully degraded
+leaflet_2d <- update_provider(
+  mapbox_3d,
+  "leaflet",
+  preserve_layers = TRUE,
+  graceful_degradation = TRUE
+)
+
+# The column layer becomes a scaled scatterplot layer
+# Pitch and bearing are set to 0 (with warnings)
+```
+
+## Coordinate System Transformations
+
+### Automatic Coordinate Handling
+
+The system automatically handles coordinate transformations:
+
+```{r}
+# WGS84 data (standard GPS coordinates)
+wgs84_data <- data.frame(
+  location = c("Beijing", "Shanghai", "Guangzhou"),
+  lon = c(116.3974, 121.4737, 113.2644),
+  lat = c(39.9093, 31.2304, 23.1291),
+  value = c(100, 150, 120)
+)
+
+# Mapbox uses WGS84 (no transformation needed)
+mapbox_map <- mapdeck(provider = "mapbox") %>%
+  add_scatterplot(data = wgs84_data, lon = "lon", lat = "lat")
+
+# Gaode uses GCJ02 (automatic transformation)
+gaode_map <- mapdeck(provider = "gaode") %>%
+  add_scatterplot(data = wgs84_data, lon = "lon", lat = "lat")
+# Coordinates automatically transformed from WGS84 to GCJ02
+
+# Baidu uses BD09 (automatic transformation)
+baidu_map <- mapdeck(provider = "baidu") %>%
+  add_scatterplot(data = wgs84_data, lon = "lon", lat = "lat")
+# Coordinates automatically transformed from WGS84 to BD09
+```
+
+### Manual Coordinate Transformations
+
+For advanced use cases, perform manual transformations:
+
+```{r}
+# Manual coordinate transformation
+wgs84_coords <- data.frame(
+  lon = c(116.3974, 121.4737),
+  lat = c(39.9093, 31.2304)
+)
+
+# Transform to different coordinate systems
+gcj02_coords <- transform_coordinates(wgs84_coords, "WGS84", "GCJ02")
+bd09_coords <- transform_coordinates(wgs84_coords, "WGS84", "BD09")
+
+print("Original WGS84:")
+print(wgs84_coords)
+print("Transformed to GCJ02 (Gaode):")
+print(gcj02_coords)
+print("Transformed to BD09 (Baidu):")
+print(bd09_coords)
+
+# Detect coordinate system automatically
+detected_crs <- detect_coordinate_system(wgs84_coords)
+print(paste("Detected coordinate system:", detected_crs))
+
+# Transform data coordinates for specific providers
+transformed_data <- transform_data_coordinates(
+  wgs84_data, 
+  from_crs = "WGS84", 
+  to_crs = "GCJ02"
+)
+```
+
+### Coordinate Accuracy Validation
+
+Validate transformation accuracy:
+
+```{r}
+# Test coordinate transformation accuracy
+test_accuracy <- function(original_coords, target_crs) {
+  # Transform coordinates
+  transformed <- transform_coordinates(original_coords, "WGS84", target_crs)
+  
+  # Transform back to WGS84
+  back_transformed <- transform_coordinates(transformed, target_crs, "WGS84")
+  
+  # Calculate accuracy (in meters)
+  lon_diff <- original_coords$lon - back_transformed$lon
+  lat_diff <- original_coords$lat - back_transformed$lat
+  
+  # Convert to meters (approximate)
+  accuracy_meters <- sqrt(lon_diff^2 + lat_diff^2) * 111000
+  
+  return(list(
+    original = original_coords,
+    transformed = transformed,
+    back_transformed = back_transformed,
+    accuracy_meters = accuracy_meters
+  ))
+}
+
+# Test accuracy for different coordinate systems
+beijing_coords <- data.frame(lon = 116.3974, lat = 39.9093)
+
+gcj02_accuracy <- test_accuracy(beijing_coords, "GCJ02")
+bd09_accuracy <- test_accuracy(beijing_coords, "BD09")
+
+print(paste("GCJ02 transformation accuracy:", 
+           round(gcj02_accuracy$accuracy_meters, 2), "meters"))
+print(paste("BD09 transformation accuracy:", 
+           round(bd09_accuracy$accuracy_meters, 2), "meters"))
+```
+
+## Advanced Styling and Theming
+
+### Cross-Provider Style Management
+
+Manage styles consistently across providers:
+
+```{r}
+# Get available styles for each provider
+mapbox_styles <- get_available_styles("mapbox")
+leaflet_styles <- get_available_styles("leaflet")
+gaode_styles <- get_available_styles("gaode")
+
+print("Mapbox styles:")
+print(mapbox_styles)
+print("Leaflet styles:")
+print(leaflet_styles)
+print("Gaode styles:")
+print(gaode_styles)
+
+# Create style mapping function
+create_styled_map <- function(provider, theme = "dark") {
+  
+  # Map generic themes to provider-specific styles
+  style_mapping <- list(
+    mapbox = list(
+      light = "streets",
+      dark = "dark",
+      satellite = "satellite"
+    ),
+    leaflet = list(
+      light = "light",  # CartoDB Positron
+      dark = "dark",    # CartoDB DarkMatter
+      satellite = "satellite"  # Esri WorldImagery
+    ),
+    gaode = list(
+      light = "normal",
+      dark = "dark",
+      satellite = "satellite"
+    )
+  )
+  
+  style <- style_mapping[[provider]][[theme]]
+  
+  mapdeck(
+    provider = provider,
+    style = style,
+    location = c(0, 20),
+    zoom = 2
+  )
+}
+
+# Create consistent dark theme across providers
+dark_mapbox <- create_styled_map("mapbox", "dark")
+dark_leaflet <- create_styled_map("leaflet", "dark")
+dark_gaode <- create_styled_map("gaode", "dark")
+```
+
+### Custom Style Validation
+
+Validate styles before applying:
+
+```{r}
+# Validate style compatibility
+validate_style <- function(style, provider) {
+  validation <- validate_map_style(style, provider, detailed = TRUE)
+  
+  cat("Style Validation Results:\n")
+  cat("Style:", style, "\n")
+  cat("Provider:", provider, "\n")
+  cat("Valid:", validation$valid, "\n")
+  
+  if (!validation$valid) {
+    cat("Issues:\n")
+    for (issue in validation$issues) {
+      cat("  -", issue, "\n")
+    }
+    
+    if (!is.null(validation$suggested_alternatives)) {
+      cat("Suggested alternatives:\n")
+      for (alt in validation$suggested_alternatives) {
+        cat("  -", alt, "\n")
+      }
+    }
+  }
+  
+  return(validation)
+}
+
+# Test style validation
+validate_style("streets", "mapbox")
+validate_style("watercolor", "leaflet")
+validate_style("invalid_style", "mapbox")
+```
+
+### Theme Management
+
+Apply consistent themes across providers:
+
+```{r}
+# Create theme manager
+theme_manager <- list(
+  light = list(
+    background = "#FFFFFF",
+    text_color = "#2C3E50",
+    accent_color = "#3498DB",
+    mapbox_style = "streets",
+    leaflet_style = "light",
+    gaode_style = "normal"
+  ),
+  dark = list(
+    background = "#2C3E50",
+    text_color = "#FFFFFF",
+    accent_color = "#E74C3C",
+    mapbox_style = "dark",
+    leaflet_style = "dark",
+    gaode_style = "dark"
+  ),
+  satellite = list(
+    background = "#000000",
+    text_color = "#FFFFFF",
+    accent_color = "#F39C12",
+    mapbox_style = "satellite",
+    leaflet_style = "satellite",
+    gaode_style = "satellite"
+  )
+)
+
+# Apply theme to map
+apply_theme <- function(provider, theme_name) {
+  theme <- theme_manager[[theme_name]]
+  style_key <- paste0(provider, "_style")
+  
+  map <- mapdeck(
+    provider = provider,
+    style = theme[[style_key]],
+    location = c(0, 20),
+    zoom = 2
+  )
+  
+  # Apply theme-specific styling to layers
+  map %>%
+    add_scatterplot(
+      data = capitals,
+      lon = "lon",
+      lat = "lat",
+      radius = 100000,
+      fill_colour = theme$accent_color,
+      stroke_colour = theme$text_color
+    )
+}
+
+# Create themed maps
+light_mapbox <- apply_theme("mapbox", "light")
+dark_leaflet <- apply_theme("leaflet", "dark")
+satellite_gaode <- apply_theme("gaode", "satellite")
+```
+
+## Performance Optimization
+
+### Provider Performance Comparison
+
+Compare performance across providers:
+
+```{r}
+# Performance testing function
+benchmark_providers <- function(data, layer_type = "scatterplot") {
+  
+  providers <- list_available_providers()
+  results <- list()
+  
+  for (provider in providers) {
+    cat("Benchmarking", provider, "...\n")
+    
+    # Skip providers that require authentication if not configured
+    if (provider %in% c("mapbox", "gaode", "baidu")) {
+      token <- get_access_token(provider)
+      if (is.null(token) || token == "") {
+        cat("  Skipped: No authentication token\n")
+        next
+      }
+    }
+    
+    # Measure rendering time
+    start_time <- Sys.time()
+    
+    tryCatch({
+      map <- mapdeck(
+        provider = provider,
+        location = c(0, 0),
+        zoom = 2
+      )
+      
+      if (layer_type == "scatterplot") {
+        map <- map %>%
+          add_scatterplot(
+            data = data,
+            lon = "lon",
+            lat = "lat",
+            radius = 50000,
+            fill_colour = "country"
+          )
+      } else if (layer_type == "screengrid") {
+        map <- map %>%
+          add_screengrid(
+            data = data,
+            lon = "lon",
+            lat = "lat",
+            cell_size = 50
+          )
+      }
+      
+      end_time <- Sys.time()
+      results[[provider]] <- list(
+        time_seconds = as.numeric(end_time - start_time),
+        success = TRUE,
+        error = NULL
+      )
+      
+      cat("  Time:", round(results[[provider]]$time_seconds, 3), "seconds\n")
+      
+    }, error = function(e) {
+      results[[provider]] <- list(
+        time_seconds = NA,
+        success = FALSE,
+        error = e$message
+      )
+      cat("  Error:", e$message, "\n")
+    })
+  }
+  
+  return(results)
+}
+
+# Run performance benchmark
+if (exists("capitals")) {
+  performance_results <- benchmark_providers(capitals, "scatterplot")
+  
+  # Analyze results
+  successful_results <- performance_results[
+    sapply(performance_results, function(x) x$success)
+  ]
+  
+  if (length(successful_results) > 0) {
+    times <- sapply(successful_results, function(x) x$time_seconds)
+    fastest_provider <- names(times)[which.min(times)]
+    
+    cat("\nPerformance Summary:\n")
+    cat("Fastest provider:", fastest_provider, 
+        "(" , round(min(times), 3), "seconds)\n")
+    
+    for (provider in names(times)) {
+      cat(provider, ":", round(times[provider], 3), "seconds\n")
+    }
+  }
+}
+```
+
+### Memory Usage Optimization
+
+Monitor and optimize memory usage:
+
+```{r}
+# Memory usage monitoring
+monitor_memory_usage <- function(provider, data_size = 1000) {
+  
+  # Generate test data
+  test_data <- data.frame(
+    lon = runif(data_size, -180, 180),
+    lat = runif(data_size, -85, 85),
+    value = rnorm(data_size, 100, 20)
+  )
+  
+  # Monitor memory before
+  gc()  # Garbage collection
+  mem_before <- memory.size()
+  
+  # Create map with data
+  map <- mapdeck(provider = provider, location = c(0, 0), zoom = 2) %>%
+    add_scatterplot(
+      data = test_data,
+      lon = "lon",
+      lat = "lat",
+      radius = 10000,
+      fill_colour = "value"
+    )
+  
+  # Monitor memory after
+  mem_after <- memory.size()
+  memory_used <- mem_after - mem_before
+  
+  cat("Memory usage for", provider, "with", data_size, "points:\n")
+  cat("  Memory used:", round(memory_used, 2), "MB\n")
+  cat("  Memory per point:", round(memory_used / data_size * 1000, 2), "KB\n")
+  
+  return(list(
+    provider = provider,
+    data_size = data_size,
+    memory_mb = memory_used,
+    memory_per_point_kb = memory_used / data_size * 1000
+  ))
+}
+
+# Test memory usage across providers
+memory_results <- list()
+data_sizes <- c(1000, 5000, 10000)
+
+for (size in data_sizes) {
+  for (provider in c("mapbox", "leaflet", "openlayers")) {
+    if (provider %in% list_available_providers()) {
+      result <- monitor_memory_usage(provider, size)
+      memory_results[[paste(provider, size, sep = "_")]] <- result
+    }
+  }
+}
+```
+
+### Large Dataset Handling
+
+Optimize for large datasets:
+
+```{r}
+# Large dataset optimization strategies
+optimize_large_dataset <- function(data, provider, optimization = "auto") {
+  
+  data_size <- nrow(data)
+  cat("Optimizing", data_size, "points for", provider, "\n")
+  
+  # Choose optimization strategy based on data size and provider
+  if (optimization == "auto") {
+    if (data_size < 1000) {
+      optimization <- "none"
+    } else if (data_size < 10000) {
+      optimization <- "sampling"
+    } else {
+      optimization <- "aggregation"
+    }
+  }
+  
+  cat("Using optimization strategy:", optimization, "\n")
+  
+  map <- mapdeck(provider = provider, location = c(0, 0), zoom = 2)
+  
+  if (optimization == "none") {
+    # No optimization - render all points
+    map <- map %>%
+      add_scatterplot(
+        data = data,
+        lon = "lon",
+        lat = "lat",
+        radius = 5000,
+        fill_colour = "value"
+      )
+      
+  } else if (optimization == "sampling") {
+    # Sample data to reduce point count
+    sample_size <- min(5000, nrow(data))
+    sampled_data <- data[sample(nrow(data), sample_size), ]
+    
+    map <- map %>%
+      add_scatterplot(
+        data = sampled_data,
+        lon = "lon",
+        lat = "lat",
+        radius = 8000,
+        fill_colour = "value"
+      )
+      
+  } else if (optimization == "aggregation") {
+    # Use aggregation layers for large datasets
+    map <- map %>%
+      add_screengrid(
+        data = data,
+        lon = "lon",
+        lat = "lat",
+        weight = "value",
+        cell_size = 50,
+        opacity = 0.8
+      )
+  }
+  
+  return(map)
+}
+
+# Test with large dataset
+if (FALSE) {  # Example with large dataset
+  large_data <- data.frame(
+    lon = runif(50000, -180, 180),
+    lat = runif(50000, -85, 85),
+    value = rnorm(50000, 100, 20)
+  )
+  
+  # Test different optimization strategies
+  no_opt_map <- optimize_large_dataset(large_data, "leaflet", "none")
+  sampled_map <- optimize_large_dataset(large_data, "leaflet", "sampling")
+  aggregated_map <- optimize_large_dataset(large_data, "leaflet", "aggregation")
+}
+```
+
+## Integration Patterns
+
+### Shiny Integration
+
+Advanced Shiny integration with provider switching:
+
+```{r}
+if (FALSE) {  # Shiny application example
+  library(shiny)
+  library(shinydashboard)
+  
+  ui <- dashboardPage(
+    dashboardHeader(title = "Multi-Provider Map Dashboard"),
+    
+    dashboardSidebar(
+      sidebarMenu(
+        menuItem("Map View", tabName = "map", icon = icon("map")),
+        menuItem("Settings", tabName = "settings", icon = icon("cog"))
+      )
+    ),
+    
+    dashboardBody(
+      tabItems(
+        tabItem(tabName = "map",
+          fluidRow(
+            box(
+              title = "Map Controls", status = "primary", solidHeader = TRUE,
+              width = 3,
+              selectInput("provider", "Map Provider:",
+                         choices = list_available_providers(),
+                         selected = "mapbox"),
+              selectInput("style", "Map Style:",
+                         choices = NULL),
+              sliderInput("zoom", "Zoom Level:", 
+                         min = 1, max = 18, value = 10),
+              checkboxInput("enable_3d", "Enable 3D (if supported)", FALSE),
+              actionButton("switch_provider", "Switch Provider", 
+                          class = "btn-warning"),
+              hr(),
+              h4("Provider Info"),
+              verbatimTextOutput("provider_capabilities")
+            ),
+            box(
+              title = "Map", status = "primary", solidHeader = TRUE,
+              width = 9,
+              mapdeckOutput("map", height = "600px")
+            )
+          )
+        ),
+        
+        tabItem(tabName = "settings",
+          fluidRow(
+            box(
+              title = "Authentication", status = "primary", solidHeader = TRUE,
+              width = 6,
+              textInput("mapbox_token", "Mapbox Token:", 
+                       placeholder = "pk.your_token_here"),
+              textInput("gaode_token", "Gaode API Key:", 
+                       placeholder = "your_gaode_key_here"),
+              textInput("baidu_token", "Baidu API Key:", 
+                       placeholder = "your_baidu_key_here"),
+              actionButton("save_tokens", "Save Tokens", class = "btn-success")
+            ),
+            box(
+              title = "Performance", status = "primary", solidHeader = TRUE,
+              width = 6,
+              numericInput("max_points", "Max Points to Display:", 
+                          value = 5000, min = 100, max = 50000),
+              selectInput("optimization", "Optimization Strategy:",
+                         choices = c("Auto" = "auto", 
+                                   "None" = "none",
+                                   "Sampling" = "sampling", 
+                                   "Aggregation" = "aggregation")),
+              checkboxInput("enable_gpu", "Enable GPU Acceleration", TRUE)
+            )
+          )
+        )
+      )
+    )
+  )
+  
+  server <- function(input, output, session) {
+    
+    # Reactive values
+    values <- reactiveValues(
+      current_map = NULL,
+      provider_switched = FALSE
+    )
+    
+    # Update style choices based on provider
+    observe({
+      req(input$provider)
+      styles <- get_available_styles(input$provider)
+      updateSelectInput(session, "style", choices = styles, selected = styles[1])
+    })
+    
+    # Save authentication tokens
+    observeEvent(input$save_tokens, {
+      if (input$mapbox_token != "") {
+        set_token(input$mapbox_token, provider = "mapbox")
+      }
+      if (input$gaode_token != "") {
+        set_token(input$gaode_token, provider = "gaode")
+      }
+      if (input$baidu_token != "") {
+        set_token(input$baidu_token, provider = "baidu")
+      }
+      
+      showNotification("Tokens saved successfully!", type = "success")
+    })
+    
+    # Create reactive map
+    map_reactive <- reactive({
+      
+      # Get provider capabilities
+      capabilities <- get_provider_capabilities(input$provider)
+      
+      # Adjust 3D settings based on provider support
+      pitch <- if (input$enable_3d && capabilities$supports_3d) 45 else 0
+      bearing <- if (input$enable_3d && capabilities$supports_3d) 30 else 0
+      
+      map <- mapdeck(
+        provider = input$provider,
+        style = input$style,
+        zoom = input$zoom,
+        pitch = pitch,
+        bearing = bearing,
+        location = c(0, 20)
+      ) %>%
+        add_scatterplot(
+          data = capitals,
+          lon = "lon",
+          lat = "lat",
+          radius = 100000,
+          fill_colour = "country",
+          tooltip = c("capital_city", "country")
+        )
+      
+      values$current_map <- map
+      return(map)
+    })
+    
+    # Render map
+    output$map <- renderMapdeck({
+      map_reactive()
+    })
+    
+    # Provider switching
+    observeEvent(input$switch_provider, {
+      req(values$current_map)
+      
+      # Check compatibility
+      current_provider <- extract_provider_info(values$current_map)$provider
+      compatibility <- check_provider_compatibility(current_provider, input$provider)
+      
+      if (compatibility$compatible) {
+        # Switch provider
+        new_map <- update_provider(
+          values$current_map,
+          input$provider,
+          preserve_layers = TRUE,
+          transform_coordinates = TRUE
+        )
+        
+        values$current_map <- new_map
+        values$provider_switched <- TRUE
+        
+        output$map <- renderMapdeck({
+          new_map
+        })
+        
+        showNotification(
+          paste("Switched to", input$provider, "successfully!"),
+          type = "success"
+        )
+      } else {
+        showNotification(
+          paste("Cannot switch to", input$provider, ":", compatibility$reason),
+          type = "error"
+        )
+      }
+    })
+    
+    # Display provider capabilities
+    output$provider_capabilities <- renderText({
+      req(input$provider)
+      capabilities <- get_provider_capabilities(input$provider)
+      
+      paste(
+        "Provider:", input$provider,
+        "\nSupports 3D:", capabilities$supports_3d,
+        "\nCoordinate System:", capabilities$coordinate_system,
+        "\nAuthentication Required:", capabilities$requires_auth,
+        "\nMax Zoom Level:", capabilities$max_zoom,
+        "\nSupported Layers:", paste(capabilities$supported_layers, collapse = ", ")
+      )
+    })
+  }
+  
+  shinyApp(ui = ui, server = server)
+}
+```
+
+### API Integration
+
+Integrate with external APIs and data sources:
+
+```{r}
+# Example: Weather data integration
+integrate_weather_data <- function(provider, api_key) {
+  
+  # Mock weather API call (replace with actual API)
+  get_weather_data <- function() {
+    data.frame(
+      city = c("New York", "London", "Tokyo", "Sydney"),
+      lon = c(-74.006, -0.1276, 139.6917, 151.2093),
+      lat = c(40.7128, 51.5074, 35.6895, -33.8688),
+      temperature = c(22, 18, 28, 25),
+      humidity = c(65, 80, 70, 55),
+      weather = c("Sunny", "Cloudy", "Rainy", "Clear")
+    )
+  }
+  
+  weather_data <- get_weather_data()
+  
+  # Create weather visualization
+  weather_map <- mapdeck(
+    provider = provider,
+    location = c(0, 30),
+    zoom = 2
+  ) %>%
+    add_scatterplot(
+      data = weather_data,
+      lon = "lon",
+      lat = "lat",
+      radius = "temperature",
+      fill_colour = "weather",
+      tooltip = c("city", "temperature", "humidity", "weather"),
+      radius_min_pixels = 10,
+      radius_max_pixels = 50
+    ) %>%
+    add_text(
+      data = weather_data,
+      lon = "lon",
+      lat = "lat",
+      text = "temperature",
+      size = 12,
+      colour = "#FFFFFF"
+    )
+  
+  return(weather_map)
+}
+
+# Use with different providers
+if (FALSE) {
+  weather_mapbox <- integrate_weather_data("mapbox", "your_weather_api_key")
+  weather_leaflet <- integrate_weather_data("leaflet", "your_weather_api_key")
+}
+```
+
+This comprehensive guide covers the advanced features available in the multi-provider mapdeck system, enabling you to build sophisticated mapping applications with provider flexibility, coordinate system handling, and performance optimization.

@@ -25,16 +25,6 @@ provider$initialize(list(token = "pk.your_token_here"))
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{mapbox_config}}{Mapbox-specific configuration}
-
-\item{\code{access_token}}{Mapbox access token}
-
-\item{\code{current_style}}{Current map style}
-
-\item{\code{layers}}{List of active layers}
-
-\item{\code{map_instance}}{Reference to the map instance}
-
 \item{\code{mapbox_config}}{Mapbox configuration}
 
 \item{\code{access_token}}{Mapbox access token}

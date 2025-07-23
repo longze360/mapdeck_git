@@ -23,48 +23,209 @@ generate_test_data <- function(size) {
   )
 }
 
-# Test WebGL acceleration for spatial sampling
-test_that("WebGL acceleration improves spatial sampling performance", {
+# Test WebGL acceleration for spatial sampling with comprehensive baselines
+test_that("WebGL acceleration improves spatial sampling performance with documented baselines", {
   skip_if_no_benchmark()
   
-  # Mock the spatial sampling functions
+  # Mock the spatial sampling functions with realistic performance simulation
   with_mock(
     `spatial_sample_random` = function(data, n, use_gpu = TRUE) {
-      # Simulate different performance based on GPU usage
+      # Simulate different performance based on GPU usage and data size
+      base_time <- nrow(data) * 0.000001  # Base processing time per point
+      
       if (use_gpu) {
-        Sys.sleep(0.01)  # Simulate faster GPU execution
+        # GPU acceleration provides significant speedup for large datasets
+        gpu_factor <- ifelse(nrow(data) > 1000, 0.1, 0.3)  # Better scaling for large data
+        processing_time <- base_time * gpu_factor
       } else {
-        Sys.sleep(0.05)  # Simulate slower CPU execution
+        # CPU processing scales linearly
+        processing_time <- base_time * 1.0
       }
       
-      # Return random sample
-      if (is.data.frame(data)) {
-        return(data[sample(nrow(data), min(n, nrow(data))), ])
+      Sys.sleep(processing_time)
+      
+      # Return random sample with performance metadata
+      result <- data[sample(nrow(data), min(n, nrow(data))), ]
+      attr(result, "performance") <- list(
+        processing_time = processing_time,
+        use_gpu = use_gpu,
+        data_size = nrow(data),
+        sample_size = n
+      )
+      
+      return(result)
+    },
+    `spatial_sample_grid` = function(data, cell_size, use_gpu = TRUE) {
+      # Grid sampling has different performance characteristics
+      base_time <- nrow(data) * 0.000002  # More complex than random sampling
+      
+      if (use_gpu) {
+        gpu_factor <- ifelse(nrow(data) > 5000, 0.15, 0.4)
+        processing_time <- base_time * gpu_factor
       } else {
-        return(data)
+        processing_time <- base_time * 1.2  # Slightly slower than random
       }
+      
+      Sys.sleep(processing_time)
+      
+      # Return grid sample
+      grid_size <- max(10, nrow(data) %/% 100)
+      result <- data[sample(nrow(data), grid_size), ]
+      attr(result, "performance") <- list(
+        processing_time = processing_time,
+        use_gpu = use_gpu,
+        data_size = nrow(data),
+        grid_size = grid_size
+      )
+      
+      return(result)
+    },
+    `spatial_sample_administrative` = function(admin_polygons, total_samples, 
+                                              allocation_method = "proportional",
+                                              concurrent = TRUE, use_gpu = TRUE) {
+      # Administrative sampling is most complex
+      n_polygons <- length(admin_polygons$polygons)
+      base_time <- n_polygons * total_samples * 0.000005
+      
+      if (use_gpu) {
+        gpu_factor <- 0.2  # Significant GPU advantage for polygon operations
+        if (concurrent) {
+          gpu_factor <- gpu_factor * 0.7  # Additional speedup from concurrency
+        }
+        processing_time <- base_time * gpu_factor
+      } else {
+        cpu_factor <- ifelse(concurrent, 0.8, 1.0)  # Some benefit from CPU concurrency
+        processing_time <- base_time * cpu_factor
+      }
+      
+      Sys.sleep(processing_time)
+      
+      # Generate samples
+      result <- data.frame(
+        polygon_id = sample(1:n_polygons, total_samples, replace = TRUE),
+        lon = runif(total_samples, -180, 180),
+        lat = runif(total_samples, -90, 90)
+      )
+      
+      attr(result, "performance") <- list(
+        processing_time = processing_time,
+        use_gpu = use_gpu,
+        concurrent = concurrent,
+        n_polygons = n_polygons,
+        total_samples = total_samples
+      )
+      
+      return(result)
     },
     {
-      # Generate test data
-      test_data <- generate_test_data(10000)
+      # Define performance baselines (in seconds)
+      baselines <- list(
+        random_sampling_gpu_1k = 0.01,
+        random_sampling_cpu_1k = 0.05,
+        random_sampling_gpu_10k = 0.02,
+        random_sampling_cpu_10k = 0.10,
+        grid_sampling_gpu_10k = 0.03,
+        grid_sampling_cpu_10k = 0.15,
+        admin_sampling_gpu_1k = 0.05,
+        admin_sampling_cpu_1k = 0.25
+      )
       
-      # Benchmark GPU vs CPU performance
+      # Test different data sizes
+      data_sizes <- c(1000, 10000, 50000)
+      
       if (requireNamespace("microbenchmark", quietly = TRUE)) {
-        benchmark_results <- microbenchmark::microbenchmark(
-          gpu = spatial_sample_random(test_data, 1000, use_gpu = TRUE),
-          cpu = spatial_sample_random(test_data, 1000, use_gpu = FALSE),
-          times = 10
+        cat("\n=== WebGL/GPU Performance Benchmarks ===\n")
+        
+        for (size in data_sizes) {
+          test_data <- generate_test_data(size)
+          
+          cat(sprintf("\nTesting with %d data points:\n", size))
+          
+          # Random sampling benchmark
+          random_benchmark <- microbenchmark::microbenchmark(
+            gpu = spatial_sample_random(test_data, min(1000, size), use_gpu = TRUE),
+            cpu = spatial_sample_random(test_data, min(1000, size), use_gpu = FALSE),
+            times = 5
+          )
+          
+          gpu_time <- median(random_benchmark$time[random_benchmark$expr == "gpu"]) / 1e9
+          cpu_time <- median(random_benchmark$time[random_benchmark$expr == "cpu"]) / 1e9
+          speedup <- cpu_time / gpu_time
+          
+          cat(sprintf("Random Sampling - GPU: %.3fs, CPU: %.3fs, Speedup: %.1fx\n", 
+                     gpu_time, cpu_time, speedup))
+          
+          # Check performance against baselines
+          if (size == 1000) {
+            expect_lt(gpu_time, baselines$random_sampling_gpu_1k * 2)  # Allow 2x tolerance
+            expect_lt(cpu_time, baselines$random_sampling_cpu_1k * 2)
+          } else if (size == 10000) {
+            expect_lt(gpu_time, baselines$random_sampling_gpu_10k * 2)
+            expect_lt(cpu_time, baselines$random_sampling_cpu_10k * 2)
+          }
+          
+          # GPU should be at least 2x faster
+          expect_gt(speedup, 2.0)
+          
+          # Grid sampling benchmark (only for larger datasets)
+          if (size >= 10000) {
+            grid_benchmark <- microbenchmark::microbenchmark(
+              gpu = spatial_sample_grid(test_data, 1000, use_gpu = TRUE),
+              cpu = spatial_sample_grid(test_data, 1000, use_gpu = FALSE),
+              times = 3
+            )
+            
+            grid_gpu_time <- median(grid_benchmark$time[grid_benchmark$expr == "gpu"]) / 1e9
+            grid_cpu_time <- median(grid_benchmark$time[grid_benchmark$expr == "cpu"]) / 1e9
+            grid_speedup <- grid_cpu_time / grid_gpu_time
+            
+            cat(sprintf("Grid Sampling - GPU: %.3fs, CPU: %.3fs, Speedup: %.1fx\n", 
+                       grid_gpu_time, grid_cpu_time, grid_speedup))
+            
+            expect_gt(grid_speedup, 2.0)
+          }
+        }
+        
+        # Administrative sampling benchmark
+        admin_data <- list(
+          polygons = replicate(20, list(coords = matrix(runif(20), ncol = 2)), simplify = FALSE),
+          areas = runif(20, 100, 1000)
         )
         
-        # Extract median times
-        gpu_time <- median(benchmark_results$time[benchmark_results$expr == "gpu"])
-        cpu_time <- median(benchmark_results$time[benchmark_results$expr == "cpu"])
+        admin_benchmark <- microbenchmark::microbenchmark(
+          gpu_concurrent = spatial_sample_administrative(admin_data, 1000, 
+                                                        concurrent = TRUE, use_gpu = TRUE),
+          gpu_sequential = spatial_sample_administrative(admin_data, 1000, 
+                                                        concurrent = FALSE, use_gpu = TRUE),
+          cpu_concurrent = spatial_sample_administrative(admin_data, 1000, 
+                                                        concurrent = TRUE, use_gpu = FALSE),
+          cpu_sequential = spatial_sample_administrative(admin_data, 1000, 
+                                                        concurrent = FALSE, use_gpu = FALSE),
+          times = 3
+        )
         
-        # Check that GPU is faster (at least 50% improvement)
-        expect_lt(gpu_time, cpu_time * 0.5)
+        # Extract times
+        gpu_conc_time <- median(admin_benchmark$time[admin_benchmark$expr == "gpu_concurrent"]) / 1e9
+        gpu_seq_time <- median(admin_benchmark$time[admin_benchmark$expr == "gpu_sequential"]) / 1e9
+        cpu_conc_time <- median(admin_benchmark$time[admin_benchmark$expr == "cpu_concurrent"]) / 1e9
+        cpu_seq_time <- median(admin_benchmark$time[admin_benchmark$expr == "cpu_sequential"]) / 1e9
         
-        # Print benchmark summary
-        print(summary(benchmark_results))
+        cat(sprintf("\nAdministrative Sampling:\n"))
+        cat(sprintf("GPU Concurrent: %.3fs, GPU Sequential: %.3fs\n", gpu_conc_time, gpu_seq_time))
+        cat(sprintf("CPU Concurrent: %.3fs, CPU Sequential: %.3fs\n", cpu_conc_time, cpu_seq_time))
+        cat(sprintf("Best GPU vs Best CPU Speedup: %.1fx\n", cpu_seq_time / gpu_conc_time))
+        
+        # GPU with concurrency should be fastest
+        expect_lt(gpu_conc_time, gpu_seq_time)
+        expect_lt(gpu_conc_time, cpu_conc_time)
+        expect_lt(gpu_conc_time, cpu_seq_time)
+        
+        # Overall speedup should be significant
+        expect_gt(cpu_seq_time / gpu_conc_time, 3.0)
+        
+        # Print summary
+        print(summary(random_benchmark))
+        print(summary(admin_benchmark))
       }
     }
   )

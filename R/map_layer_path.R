@@ -305,7 +305,7 @@ add_path <- function(
 #' @export
 resolve_binary_data <- function( data, l ) UseMethod("resolve_binary_data")
 
-#' @exportS3method
+#' @export
 resolve_binary_data.interleaved <- function( data, l ) {
 
 	l[["bbox"]] <- get_box( data, l )
@@ -314,7 +314,7 @@ resolve_binary_data.interleaved <- function( data, l ) {
 	return( l )
 }
 
-#' @exportS3method
+#' @export
 resolve_binary_data.sf <- function( data, l ) {
 	sfc_col <- attr( data, "sf_column" )
 	l[["geometry"]] <- sfc_col
@@ -330,7 +330,7 @@ resolve_binary_data.sf <- function( data, l ) {
 	return(l)
 }
 
-#' @exportS3method
+#' @export
 resolve_binary_data.default <- function( data, l ) {
 	return( resolve_data( data, l, "LINESTRING" ) )
 }

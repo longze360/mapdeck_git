@@ -18,10 +18,6 @@ for numeric ratio-based sampling scenarios.
 \describe{
 \item{\code{sampling_ratio}}{Numeric sampling ratio (e.g., 0.1 for 10% sampling)}
 
-\item{\code{base_sampler}}{Underlying administrative sampler}
-
-\item{\code{sampling_ratio}}{Sampling ratio for proportional sampling}
-
 \item{\code{base_sampler}}{Underlying administrative sampler
 Initialize Proportional Regional Sampler
 
@@ -214,7 +210,6 @@ Get summary statistics for the sampling operation.
 }
 \subsection{Returns}{
 List containing sampling summary statistics
-Validate Ratio Sampling Inputs
 }
 }
 \if{html}{\out{<hr>}}

@@ -22,10 +22,6 @@ is_valid <- validator$validate_style("streets", "mapbox")
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{supported_features}}{List of supported features by provider}
-
-\item{\code{validation_rules}}{List of validation rules}
-
 \item{\code{supported_features}}{Supported features by provider}
 
 \item{\code{validation_rules}}{Validation rules

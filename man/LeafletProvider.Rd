@@ -25,16 +25,6 @@ provider$initialize_provider(list(tile_provider = "OpenStreetMap"))
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{leaflet_config}}{Leaflet-specific configuration}
-
-\item{\code{tile_provider}}{Current tile provider configuration}
-
-\item{\code{current_style}}{Current map style/tile layer}
-
-\item{\code{layers}}{List of active deck.gl layers}
-
-\item{\code{map_instance}}{Reference to the map instance}
-
 \item{\code{leaflet_config}}{Leaflet configuration}
 
 \item{\code{tile_provider}}{Tile provider configuration}

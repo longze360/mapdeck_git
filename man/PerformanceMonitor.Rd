@@ -13,12 +13,6 @@ Comprehensive performance monitoring for spatial sampling operations.
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{metrics}}{List of performance metrics}
-
-\item{\code{benchmarks}}{List of benchmark results}
-
-\item{\code{profiling_enabled}}{Logical indicating if profiling is active}
-
 \item{\code{metrics}}{Performance metrics storage}
 
 \item{\code{benchmarks}}{Benchmark results storage}

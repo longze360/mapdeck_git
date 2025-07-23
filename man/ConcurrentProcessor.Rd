@@ -30,12 +30,6 @@ results <- processor$process_units(admin_polygons, sample_counts,
 \describe{
 \item{\code{max_workers}}{Maximum number of parallel workers}
 
-\item{\code{progress_enabled}}{Logical indicating if progress reporting is enabled}
-
-\item{\code{chunk_size}}{Number of units to process per chunk}
-
-\item{\code{max_workers}}{Maximum number of parallel workers}
-
 \item{\code{progress_enabled}}{Logical for progress reporting}
 
 \item{\code{chunk_size}}{Number of units per processing chunk}
@@ -195,15 +189,6 @@ Clean up parallel cluster and progress resources.
 
 \subsection{Returns}{
 Invisible self for method chaining
-Setup Parallel Cluster
-
-Initialize parallel processing cluster.
-Cleanup Parallel Cluster
-
-Clean up parallel processing resources.
-Initialize Progress Tracking
-
-Setup progress bar for processing monitoring.
 }
 }
 \if{html}{\out{<hr>}}

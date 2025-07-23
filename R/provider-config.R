@@ -40,32 +40,16 @@ NULL
 #'   default_style = "mapbox://styles/mapbox/streets-v11"
 #' )
 #' }
-#'
 #' @export
 ProviderConfig <- R6::R6Class("ProviderConfig",
   public = list(
-    #' @field name Provider name
     name = NULL,
-    
-    #' @field type Provider type
     type = NULL,
-    
-    #' @field authentication_required Authentication requirement flag
     authentication_required = NULL,
-    
-    #' @field supported_features List of supported features
     supported_features = NULL,
-    
-    #' @field coordinate_system Default coordinate system
     coordinate_system = NULL,
-    
-    #' @field default_style Default map style
     default_style = NULL,
-    
-    #' @field api_endpoints API endpoints
     api_endpoints = NULL,
-    
-    #' @field rate_limits Rate limiting information
     rate_limits = NULL,
     
     #' Initialize Provider Configuration

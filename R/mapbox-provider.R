@@ -16,11 +16,6 @@ NULL
 #' provider interface. It maintains full backward compatibility with existing
 #' mapdeck functionality while enabling multi-provider support.
 #'
-#' @field mapbox_config Mapbox-specific configuration
-#' @field access_token Mapbox access token
-#' @field current_style Current map style
-#' @field layers List of active layers
-#' @field map_instance Reference to the map instance
 #'
 #' @examples
 #' \donttest{

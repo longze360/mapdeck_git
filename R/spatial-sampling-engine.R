@@ -16,10 +16,6 @@ NULL
 #' including random, grid, and stratified sampling with automatic GPU/CPU
 #' optimization.
 #'
-#' @field gpu_enabled Logical indicating if GPU acceleration is available
-#' @field performance_stats List containing performance metrics
-#' @field fallback_threshold Numeric threshold for switching to CPU fallback
-#'
 #' @examples
 #' \donttest{
 #' # Create sampling engine
@@ -252,11 +248,11 @@ SamplingEngine <- R6::R6Class("SamplingEngine",
   ),
   
   private = list(
-    #' Detect GPU Support
-    #'
-    #' Check if GPU acceleration is available for spatial operations.
-    #'
-    #' @return Logical indicating GPU support availability
+    # Detect GPU Support
+    #
+    # Check if GPU acceleration is available for spatial operations.
+    #
+    # @return Logical indicating GPU support availability
     detect_gpu_support = function() {
       # Check for WebGL support in browser environment
       # This is a simplified check - in practice would need more robust detection
@@ -273,12 +269,12 @@ SamplingEngine <- R6::R6Class("SamplingEngine",
       })
     },
     
-    #' Validate Sampling Inputs
-    #'
-    #' Validate common inputs for sampling functions.
-    #'
-    #' @param data Input spatial data
-    #' @param n Optional number of samples
+    # Validate Sampling Inputs
+    #
+    # Validate common inputs for sampling functions.
+    #
+    # @param data Input spatial data
+    # @param n Optional number of samples
     validate_sampling_inputs = function(data, n = NULL) {
       if (is.null(data) || nrow(data) == 0) {
         stop("Data must be non-empty")
@@ -295,13 +291,13 @@ SamplingEngine <- R6::R6Class("SamplingEngine",
       }
     },
     
-    #' Validate Stratified Sampling Inputs
-    #'
-    #' Validate inputs specific to stratified sampling.
-    #'
-    #' @param data Input spatial data
-    #' @param strata_column Column name for stratification
-    #' @param n_per_stratum Samples per stratum
+    # Validate Stratified Sampling Inputs
+    #
+    # Validate inputs specific to stratified sampling.
+    #
+    # @param data Input spatial data
+    # @param strata_column Column name for stratification
+    # @param n_per_stratum Samples per stratum
     validate_stratified_inputs = function(data, strata_column, n_per_stratum) {
       if (!strata_column %in% names(data)) {
         stop("strata_column must be a valid column name in data")
@@ -320,13 +316,13 @@ SamplingEngine <- R6::R6Class("SamplingEngine",
       }
     },
     
-    #' Update Performance Statistics
-    #'
-    #' Update internal performance tracking.
-    #'
-    #' @param used_gpu Logical indicating if GPU was used
-    #' @param elapsed_time Numeric elapsed time in seconds
-    #' @param sample_count Number of samples processed
+    # Update Performance Statistics
+    #
+    # Update internal performance tracking.
+    #
+    # @param used_gpu Logical indicating if GPU was used
+    # @param elapsed_time Numeric elapsed time in seconds
+    # @param sample_count Number of samples processed
     update_performance_stats = function(used_gpu, elapsed_time, sample_count) {
       self$performance_stats$total_samples <- 
         self$performance_stats$total_samples + sample_count
@@ -1313,331 +1309,4 @@ check_gpu_acceleration <- function(detailed = FALSE, test_operations = FALSE) {
 }
 
 # Global sampling engine for performance tracking
-.sampling_engine <- NULLatial data (sf object or data.frame with coordinates)
-#' @param strata_column Character name of column for stratification
-#' @param n_per_stratum Integer samples per stratum or named vector
-#' @param bounds Optional bounding box as c(xmin, ymin, xmax, ymax)
-#' @param seed Optional random seed for reproducibility
-#' @param engine Optional SamplingEngine instance (created if NULL)
-#'
-#' @return Stratified sampled spatial data
-#'
-#' @examples
-#' \donttest{
-#' # Stratified sampling
-#' library(sf)
-#' data(melbourne, package = "mapdeck")
-#' melbourne$category <- sample(c("A", "B", "C"), nrow(melbourne), replace = TRUE)
-#' stratified_samples <- spatial_sample_stratified(melbourne, 
-#'                                                  strata_column = "category",
-#'                                                  n_per_stratum = 10)
-#' 
-#' # Stratified sampling with different samples per stratum
-#' n_per_stratum <- c("A" = 15, "B" = 10, "C" = 5)
-#' custom_stratified <- spatial_sample_stratified(melbourne, 
-#'                                                 strata_column = "category",
-#'                                                 n_per_stratum = n_per_stratum)
-#' }
-#'
-#' @export
-spatial_sample_stratified <- function(data, strata_column, n_per_stratum, 
-                                      bounds = NULL, seed = NULL, engine = NULL) {
-  # Create engine if not provided
-  if (is.null(engine)) {
-    engine <- SamplingEngine$new()
-    engine$initialize()
-  }
-  
-  # Perform sampling
-  return(engine$spatial_sample_stratified(data, strata_column, n_per_stratum, 
-                                           bounds, seed))
-}
-
-#' Administrative Boundary Sampling
-#'
-#' Perform spatial sampling within administrative boundaries with support for
-#' different allocation strategies.
-#'
-#' @param admin_polygons sf object with administrative polygons
-#' @param total_samples Integer total number of samples to generate
-#' @param allocation_method Method for allocating samples: "proportional", 
-#'   "equal", or "custom"
-#' @param weight_column Column name for custom weights (required for "custom")
-#' @param admin_column Column name for administrative unit identifiers
-#' @param concurrent Logical indicating if concurrent processing should be used
-#' @param use_gpu Logical indicating if GPU acceleration should be used
-#' @param seed Optional random seed for reproducibility
-#'
-#' @return sf object with sampled points including administrative unit info
-#'
-#' @examples
-#' \donttest{
-#' # Load administrative boundaries (example with mock data)
-#' library(sf)
-#' 
-#' # Create mock administrative polygons
-#' admin_bounds <- data.frame(
-#'   admin_id = c("A", "B", "C"),
-#'   area = c(100, 200, 150)
-#' )
-#' 
-#' # Convert to sf polygons (simplified example)
-#' coords_list <- list(
-#'   matrix(c(0,0, 1,0, 1,1, 0,1, 0,0), ncol=2, byrow=TRUE),
-#'   matrix(c(1,0, 3,0, 3,2, 1,2, 1,0), ncol=2, byrow=TRUE),
-#'   matrix(c(0,1, 2,1, 2,2.5, 0,2.5, 0,1), ncol=2, byrow=TRUE)
-#' )
-#' 
-#' polygons <- lapply(coords_list, function(x) st_polygon(list(x)))
-#' admin_sf <- st_sf(admin_bounds, geometry = st_sfc(polygons))
-#' 
-#' # Proportional allocation (default)
-#' prop_samples <- spatial_sample_administrative(admin_sf, total_samples = 100)
-#' 
-#' # Equal allocation
-#' equal_samples <- spatial_sample_administrative(admin_sf, 
-#'                                                total_samples = 90,
-#'                                                allocation_method = "equal")
-#' 
-#' # Custom allocation based on area column
-#' custom_samples <- spatial_sample_administrative(admin_sf, 
-#'                                                 total_samples = 120,
-#'                                                 allocation_method = "custom",
-#'                                                 weight_column = "area")
-#' }
-#'
-#' @export
-spatial_sample_administrative <- function(admin_polygons, total_samples,
-                                          allocation_method = "proportional",
-                                          weight_column = NULL,
-                                          admin_column = NULL,
-                                          concurrent = FALSE,
-                                          use_gpu = TRUE,
-                                          seed = NULL) {
-  # Load administrative sampler
-  if (!exists("AdministrativeSampler")) {
-    source("R/spatial-sampling/administrative-sampler.R", local = TRUE)
-  }
-  
-  # Create administrative sampler
-  config <- list(
-    allocation_method = allocation_method,
-    concurrent = concurrent,
-    use_gpu = use_gpu
-  )
-  
-  sampler <- AdministrativeSampler$new()
-  sampler$initialize(config)
-  
-  # Perform administrative sampling
-  return(sampler$sample_administrative(
-    admin_polygons = admin_polygons,
-    total_samples = total_samples,
-    allocation_method = allocation_method,
-    weight_column = weight_column,
-    admin_column = admin_column,
-    concurrent = concurrent,
-    use_gpu = use_gpu,
-    seed = seed
-  ))
-}
-#'
-#' @return Stratified sampled spatial data
-#'
-#' @examples
-#' \donttest{
-#' # Stratified sampling with equal samples per stratum
-#' library(sf)
-#' data(road_safety, package = "mapdeck")
-#' stratified_samples <- spatial_sample_stratified(road_safety, 
-#'                                                  strata_column = "ACCIDENT_TYPE",
-#'                                                  n_per_stratum = 50)
-#' 
-#' # Stratified sampling with different samples per stratum
-#' sample_sizes <- list("Collision with vehicle" = 100, 
-#'                      "Collision with object" = 50,
-#'                      "Other" = 25)
-#' custom_stratified <- spatial_sample_stratified(road_safety,
-#'                                                 strata_column = "ACCIDENT_TYPE",
-#'                                                 n_per_stratum = sample_sizes)
-#' 
-#' # Stratified sampling with bounds and seed
-#' bounds <- c(144.9, -37.9, 145.0, -37.8)
-#' reproducible_stratified <- spatial_sample_stratified(road_safety,
-#'                                                       strata_column = "ACCIDENT_TYPE",
-#'                                                       n_per_stratum = 30,
-#'                                                       bounds = bounds,
-#'                                                       seed = 456)
-#' }
-#'
-#' @export
-spatial_sample_stratified <- function(data, strata_column, n_per_stratum, 
-                                      bounds = NULL, seed = NULL, engine = NULL) {
-  # Create engine if not provided
-  if (is.null(engine)) {
-    engine <- SamplingEngine$new()
-    engine$initialize()
-  }
-  
-  # Perform sampling
-  return(engine$spatial_sample_stratified(data, strata_column, n_per_stratum, 
-                                          bounds, seed))
-}
-
-#' Create Spatial Sampling Engine
-#'
-#' Create and initialize a SamplingEngine instance for reuse across
-#' multiple sampling operations.
-#'
-#' @param config Optional list containing engine configuration:
-#'   - fallback_threshold: Numeric threshold for GPU/CPU switching (default: 10000)
-#'   - gpu_enabled: Logical to force enable/disable GPU (auto-detected if NULL)
-#'
-#' @return Initialized SamplingEngine instance
-#'
-#' @examples
-#' \donttest{
-#' # Create engine with default settings
-#' engine <- create_sampling_engine()
-#' 
-#' # Create engine with custom configuration
-#' config <- list(fallback_threshold = 5000)
-#' custom_engine <- create_sampling_engine(config)
-#' 
-#' # Use engine for multiple operations
-#' samples1 <- spatial_sample_random(data1, n = 100, engine = engine)
-#' samples2 <- spatial_sample_grid(data2, grid_size = 0.01, engine = engine)
-#' 
-#' # Check performance statistics
-#' stats <- engine$get_performance_stats()
-#' print(stats)
-#' }
-#'
-#' @export
-create_sampling_engine <- function(config = list()) {
-  engine <- SamplingEngine$new()
-  engine$initialize(config)
-  return(engine)
-}
-
-#' Get Sampling Engine Performance Statistics
-#'
-#' Retrieve performance statistics from a sampling engine or create
-#' a summary of global sampling performance.
-#'
-#' @param engine Optional SamplingEngine instance. If NULL, returns
-#'   global performance summary
-#'
-#' @return List containing performance metrics:
-#'   - gpu_operations: Number of GPU operations performed
-#'   - cpu_operations: Number of CPU operations performed
-#'   - total_samples: Total number of samples processed
-#'   - avg_gpu_time: Average GPU operation time in seconds
-#'   - avg_cpu_time: Average CPU operation time in seconds
-#'   - gpu_efficiency: GPU vs CPU performance ratio
-#'
-#' @examples
-#' \donttest{
-#' # Get statistics from specific engine
-#' engine <- create_sampling_engine()
-#' samples <- spatial_sample_random(data, n = 1000, engine = engine)
-#' stats <- get_sampling_performance(engine)
-#' 
-#' # Print performance summary
-#' print(stats)
-#' }
-#'
-#' @export
-get_sampling_performance <- function(engine = NULL) {
-  if (is.null(engine)) {
-    # Return global performance summary
-    return(list(
-      message = "No engine provided. Create an engine and perform operations to see statistics.",
-      gpu_operations = 0,
-      cpu_operations = 0,
-      total_samples = 0,
-      avg_gpu_time = 0,
-      avg_cpu_time = 0,
-      gpu_efficiency = NA
-    ))
-  }
-  
-  stats <- engine$get_performance_stats()
-  
-  # Calculate efficiency ratio
-  if (stats$avg_cpu_time > 0 && stats$avg_gpu_time > 0) {
-    stats$gpu_efficiency <- stats$avg_cpu_time / stats$avg_gpu_time
-  } else {
-    stats$gpu_efficiency <- NA
-  }
-  
-  return(stats)
-}
-
-#' Reset Sampling Engine Performance Statistics
-#'
-#' Reset performance counters for a sampling engine.
-#'
-#' @param engine SamplingEngine instance
-#'
-#' @return Invisible engine for method chaining
-#'
-#' @examples
-#' \donttest{
-#' # Reset engine statistics
-#' engine <- create_sampling_engine()
-#' # ... perform operations ...
-#' reset_sampling_performance(engine)
-#' }
-#'
-#' @export
-reset_sampling_performance <- function(engine) {
-  if (is.null(engine) || !inherits(engine, "SamplingEngine")) {
-    stop("engine must be a SamplingEngine instance")
-  }
-  
-  return(engine$reset_performance_stats())
-}
-
-#' Check GPU Acceleration Availability
-#'
-#' Check if GPU acceleration is available for spatial sampling operations.
-#'
-#' @return List containing GPU availability information:
-#'   - available: Logical indicating if GPU is available
-#'   - reason: Character string explaining availability status
-#'   - fallback_threshold: Current threshold for GPU/CPU switching
-#'
-#' @examples
-#' \donttest{
-#' # Check GPU availability
-#' gpu_info <- check_gpu_acceleration()
-#' print(gpu_info)
-#' 
-#' if (gpu_info$available) {
-#'   message("GPU acceleration is available")
-#' } else {
-#'   message("Using CPU fallback: ", gpu_info$reason)
-#' }
-#' }
-#'
-#' @export
-check_gpu_acceleration <- function() {
-  # Create temporary engine to check GPU support
-  temp_engine <- SamplingEngine$new()
-  temp_engine$initialize()
-  
-  gpu_available <- temp_engine$gpu_enabled
-  
-  if (gpu_available) {
-    reason <- "WebGL compute shaders detected and available"
-  } else {
-    reason <- "WebGL compute shaders not available or not detected"
-  }
-  
-  return(list(
-    available = gpu_available,
-    reason = reason,
-    fallback_threshold = temp_engine$fallback_threshold
-  ))
-}
+.sampling_engine <- NULL

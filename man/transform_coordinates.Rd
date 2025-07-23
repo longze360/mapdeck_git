@@ -2,7 +2,7 @@
 % Please edit documentation in R/coordinate-transformer.R
 \name{transform_coordinates}
 \alias{transform_coordinates}
-\title{Transform coordinates between different coordinate systems}
+\title{Transform Coordinates Between Coordinate Systems}
 \usage{
 transform_coordinates(coords, from_crs, to_crs)
 }
@@ -17,18 +17,52 @@ transform_coordinates(coords, from_crs, to_crs)
 Transformed coordinates in same format as input
 }
 \description{
-A convenience function for coordinate transformation without creating a class instance.
-Supports transformations between WGS84, GCJ02, and BD09 coordinate systems.
+This function provides a convenient interface to transform coordinates between
+WGS84, GCJ02 (Mars Coordinates), and BD09 (Baidu Coordinates) coordinate systems.
+It uses a global CoordinateTransformer instance and maintains high precision
+with accuracy within 1 meter tolerance.
+}
+\details{
+Transform coordinates between different coordinate systems using a global transformer instance.
+
+
+Supported coordinate systems:
+\itemize{
+  \item \strong{WGS84}: World Geodetic System 1984 (standard GPS coordinates)
+  \item \strong{GCJ02}: Guojia Cehui Ju 02 (Chinese Mars Coordinates used by Gaode/AutoNavi)
+  \item \strong{BD09}: Baidu 09 (Baidu's proprietary coordinate system)
+}
+
+The transformation algorithms implement the official conversion formulas with
+optimizations for accuracy and performance. All transformations maintain
+precision within 1 meter tolerance as required for mapping applications.
 }
 \examples{
 \donttest{
 # Transform Beijing coordinates from WGS84 to GCJ02
 beijing_wgs84 <- c(116.3974, 39.9093)
 beijing_gcj02 <- transform_coordinates(beijing_wgs84, "WGS84", "GCJ02")
+print(beijing_gcj02)
 
 # Transform multiple points
 points_wgs84 <- matrix(c(116.3974, 39.9093, 121.4737, 31.2304), ncol = 2, byrow = TRUE)
 points_gcj02 <- transform_coordinates(points_wgs84, "WGS84", "GCJ02")
+print(points_gcj02)
+
+# Chain transformations: WGS84 -> GCJ02 -> BD09
+wgs84_point <- c(116.3974, 39.9093)
+gcj02_point <- transform_coordinates(wgs84_point, "WGS84", "GCJ02")
+bd09_point <- transform_coordinates(gcj02_point, "GCJ02", "BD09")
+
+# Verify round-trip accuracy
+back_to_wgs84 <- transform_coordinates(bd09_point, "BD09", "GCJ02")
+back_to_wgs84 <- transform_coordinates(back_to_wgs84, "GCJ02", "WGS84")
+distance_error <- sqrt(sum((wgs84_point - back_to_wgs84)^2)) * 111320  # Convert to meters
+print(paste("Round-trip error:", round(distance_error, 2), "meters"))
 }
 
+}
+\seealso{
+\code{\link{detect_coordinate_system}}, \code{\link{auto_transform_for_provider}}, 
+  \code{\link{CoordinateTransformer}}
 }

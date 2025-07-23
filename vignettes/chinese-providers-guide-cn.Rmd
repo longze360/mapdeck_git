@@ -1,0 +1,619 @@
+---
+title: "中国地图提供商指南 (Chinese Map Providers Guide)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{中国地图提供商指南 (Chinese Map Providers Guide)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+# 中国地图提供商指南
+
+本指南详细介绍如何在 mapdeck 包中使用中国地图提供商（高德地图和百度地图），包括身份验证、坐标系统处理和中文特性。
+
+## 概述
+
+mapdeck 包现在支持中国主要的地图服务提供商：
+
+- **高德地图 (AutoNavi/Gaode Maps)**: 使用 GCJ02 坐标系统
+- **百度地图 (Baidu Maps)**: 使用 BD09 坐标系统
+
+这些提供商针对中国用户进行了优化，提供了更好的地图数据质量和访问速度。
+
+## 高德地图设置
+
+### 获取 API 密钥
+
+1. 访问 [高德开放平台](https://console.amap.com/)
+2. 注册开发者账号
+3. 创建新应用
+4. 生成 Web 服务 API 密钥
+5. 复制 API 密钥
+
+### 身份验证设置
+
+```{r}
+library(mapdeck)
+
+# 方法1：全局设置令牌（推荐）
+set_token("your_gaode_api_key_here", provider = "gaode")
+
+# 方法2：环境变量
+Sys.setenv(GAODE_API_KEY = "your_gaode_api_key_here")
+
+# 方法3：直接参数
+map <- mapdeck(
+  provider = "gaode",
+  token = "your_gaode_api_key_here"
+)
+
+# 验证令牌已设置
+mapdeck_tokens()
+```
+
+### 基本使用
+
+```{r}
+# 创建基础高德地图
+gaode_map <- mapdeck(
+  provider = "gaode",
+  location = c(116.3974, 39.9093),  # 北京
+  zoom = 12,
+  style = "normal"
+)
+gaode_map
+```
+
+### 可用样式
+
+```{r}
+# 获取可用的高德地图样式
+styles <- get_available_styles("gaode")
+print(styles)
+
+# 使用不同样式
+normal_map <- mapdeck(provider = "gaode", style = "normal")      # 标准地图
+satellite_map <- mapdeck(provider = "gaode", style = "satellite") # 卫星地图
+```
+
+## 百度地图设置
+
+### 获取 API 密钥
+
+1. 访问 [百度地图开放平台](https://lbsyun.baidu.com/)
+2. 注册开发者账号
+3. 创建新应用
+4. 生成 JavaScript API 密钥
+5. 复制 API 密钥
+
+### 身份验证设置
+
+```{r}
+# 设置百度 API 密钥
+set_token("your_baidu_api_key_here", provider = "baidu")
+
+# 或使用环境变量
+Sys.setenv(BAIDU_API_KEY = "your_baidu_api_key_here")
+
+# 验证令牌已设置
+mapdeck_tokens()
+```
+
+### 基本使用
+
+```{r}
+# 创建基础百度地图
+baidu_map <- mapdeck(
+  provider = "baidu",
+  location = c(116.3974, 39.9093),  # 北京
+  zoom = 12,
+  style = "normal"
+)
+baidu_map
+```
+
+### 可用样式
+
+```{r}
+# 获取可用的百度地图样式
+styles <- get_available_styles("baidu")
+print(styles)
+
+# 使用不同样式
+normal_map <- mapdeck(provider = "baidu", style = "normal")      # 标准地图
+satellite_map <- mapdeck(provider = "baidu", style = "satellite") # 卫星地图
+dark_map <- mapdeck(provider = "baidu", style = "dark")          # 深色地图
+```
+
+## 坐标系统处理
+
+### 中国坐标系统概述
+
+中国使用特殊的坐标系统：
+
+- **WGS84**: 国际标准坐标系统（GPS 坐标）
+- **GCJ02**: 中国国家测绘局坐标系统（高德地图使用）
+- **BD09**: 百度坐标系统（百度地图使用）
+
+### 自动坐标转换
+
+mapdeck 自动处理坐标转换：
+
+```{r}
+# 中国城市数据（WGS84 坐标）
+chinese_cities <- data.frame(
+  city_cn = c("北京", "上海", "广州", "深圳", "成都"),
+  city_en = c("Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Chengdu"),
+  lon = c(116.3974, 121.4737, 113.2644, 114.0579, 104.0668),
+  lat = c(39.9093, 31.2304, 23.1291, 22.5431, 30.5728),
+  population = c(21540000, 24870000, 15300000, 12530000, 16330000)
+)
+
+# 高德地图 - 坐标自动转换为 GCJ02
+gaode_cities <- mapdeck(
+  provider = "gaode",
+  location = c(116.3974, 39.9093),
+  zoom = 5
+) %>%
+  add_scatterplot(
+    data = chinese_cities,
+    lon = "lon",
+    lat = "lat",
+    radius = "population",
+    fill_colour = "city_cn",
+    tooltip = c("city_cn", "city_en", "population"),
+    radius_min_pixels = 10,
+    radius_max_pixels = 100
+  )
+
+# 百度地图 - 坐标自动转换为 BD09
+baidu_cities <- mapdeck(
+  provider = "baidu",
+  location = c(116.3974, 39.9093),
+  zoom = 5
+) %>%
+  add_scatterplot(
+    data = chinese_cities,
+    lon = "lon",
+    lat = "lat",
+    radius = "population",
+    fill_colour = "city_cn",
+    tooltip = c("city_cn", "city_en", "population"),
+    radius_min_pixels = 10,
+    radius_max_pixels = 100
+  )
+```
+
+### 手动坐标转换
+
+如果需要手动转换坐标：
+
+```{r}
+# WGS84 坐标
+wgs84_coords <- data.frame(
+  lon = c(116.3974, 121.4737),
+  lat = c(39.9093, 31.2304)
+)
+
+# 转换为 GCJ02（高德地图）
+gcj02_coords <- transform_coordinates(wgs84_coords, "WGS84", "GCJ02")
+print("GCJ02 坐标（高德地图）:")
+print(gcj02_coords)
+
+# 转换为 BD09（百度地图）
+bd09_coords <- transform_coordinates(wgs84_coords, "WGS84", "BD09")
+print("BD09 坐标（百度地图）:")
+print(bd09_coords)
+
+# 检测坐标系统
+detected_crs <- detect_coordinate_system(wgs84_coords)
+print(paste("检测到的坐标系统:", detected_crs))
+```
+
+## 数据可视化示例
+
+### 散点图层
+
+```{r}
+# 中国省会城市数据
+provincial_capitals <- data.frame(
+  city = c("北京", "上海", "广州", "西安", "成都", "武汉", "南京", "杭州"),
+  lon = c(116.4074, 121.4737, 113.2644, 108.9402, 104.0668, 114.3054, 118.7969, 120.1551),
+  lat = c(39.9042, 31.2304, 23.1291, 34.3416, 30.5728, 30.5928, 32.0603, 30.2741),
+  gdp = c(3610, 3870, 2310, 950, 1770, 1480, 1400, 1610),  # GDP（十亿人民币）
+  region = c("华北", "华东", "华南", "西北", "西南", "华中", "华东", "华东")
+)
+
+# 高德地图散点图
+gaode_scatter <- mapdeck(
+  provider = "gaode",
+  location = c(104, 35),  # 中国中心
+  zoom = 4
+) %>%
+  add_scatterplot(
+    data = provincial_capitals,
+    lon = "lon",
+    lat = "lat",
+    radius = "gdp",
+    fill_colour = "region",
+    tooltip = c("city", "gdp", "region"),
+    radius_min_pixels = 15,
+    radius_max_pixels = 80
+  )
+gaode_scatter
+```
+
+### 文本标签
+
+```{r}
+# 添加中文城市标签
+labeled_map <- mapdeck(
+  provider = "gaode",
+  location = c(104, 35),
+  zoom = 4
+) %>%
+  add_scatterplot(
+    data = provincial_capitals,
+    lon = "lon",
+    lat = "lat",
+    radius = 60000,
+    fill_colour = "#FF6B6B",
+    layer_id = "cities"
+  ) %>%
+  add_text(
+    data = provincial_capitals,
+    lon = "lon",
+    lat = "lat",
+    text = "city",  # 中文城市名称
+    size = 16,
+    colour = "#2C3E50",
+    layer_id = "labels"
+  )
+labeled_map
+```
+
+### 多边形图层
+
+```{r}
+# 假设的省份边界数据
+if (FALSE) {  # 示例代码
+  # 中国省份多边形数据
+  china_provinces <- data.frame(
+    province = c("北京市", "上海市", "广东省", "四川省"),
+    gdp = c(3610, 3870, 10770, 4680),
+    population = c(2154, 2487, 11521, 8341)
+  )
+  
+  # 多边形图层（需要实际的多边形数据）
+  polygon_map <- mapdeck(
+    provider = "baidu",
+    location = c(104, 35),
+    zoom = 4
+  ) %>%
+    add_polygon(
+      data = china_provinces_sf,  # SF 对象
+      fill_colour = "gdp",
+      fill_opacity = 0.6,
+      stroke_colour = "#FFD700",
+      stroke_width = 2,
+      tooltip = c("province", "gdp", "population")
+    )
+}
+```
+
+## 性能优化
+
+### 大数据集处理
+
+```{r}
+# 大型中国数据集示例
+large_china_data <- data.frame(
+  lon = runif(5000, 73, 135),    # 中国经度范围
+  lat = runif(5000, 18, 54),     # 中国纬度范围
+  value = rnorm(5000, 100, 20),
+  category = sample(c("一类", "二类", "三类"), 5000, replace = TRUE)
+)
+
+# 使用屏幕网格聚合提高性能
+screengrid_gaode <- mapdeck(
+  provider = "gaode",
+  location = c(104, 35),
+  zoom = 4
+) %>%
+  add_screengrid(
+    data = large_china_data,
+    lon = "lon",
+    lat = "lat",
+    weight = "value",
+    cell_size = 50,
+    opacity = 0.8
+  )
+
+# 使用六边形聚合
+hexagon_baidu <- mapdeck(
+  provider = "baidu",
+  location = c(104, 35),
+  zoom = 4
+) %>%
+  add_hexagon(
+    data = large_china_data,
+    lon = "lon",
+    lat = "lat",
+    colour_range = c("#FFF5F0", "#FEE0D2", "#FCBBA1", "#FC9272", 
+                     "#FB6A4A", "#EF3B2C", "#CB181D", "#99000D"),
+    elevation_scale = 100
+  )
+```
+
+## 提供商切换
+
+### 在提供商之间切换
+
+```{r}
+# 从高德地图开始
+original_gaode <- mapdeck(provider = "gaode") %>%
+  add_scatterplot(
+    data = chinese_cities,
+    lon = "lon",
+    lat = "lat",
+    radius = "population",
+    fill_colour = "city_cn"
+  )
+
+# 切换到百度地图（保留图层，转换坐标）
+switched_baidu <- update_provider(original_gaode, "baidu")
+
+# 检查坐标系统兼容性
+compatibility <- check_coordinate_system_compatibility("gaode", "baidu")
+print("坐标系统兼容性:")
+print(compatibility)
+```
+
+### 提供商比较
+
+```{r}
+# 创建比较函数
+create_comparison <- function(data, title) {
+  
+  # 高德版本
+  gaode_map <- mapdeck(
+    provider = "gaode",
+    location = c(116.3974, 39.9093),
+    zoom = 5,
+    style = "normal"
+  ) %>%
+    add_scatterplot(
+      data = data,
+      lon = "lon",
+      lat = "lat",
+      radius = "population",
+      fill_colour = "city_cn",
+      tooltip = c("city_cn", "population")
+    )
+  
+  # 百度版本
+  baidu_map <- mapdeck(
+    provider = "baidu",
+    location = c(116.3974, 39.9093),
+    zoom = 5,
+    style = "normal"
+  ) %>%
+    add_scatterplot(
+      data = data,
+      lon = "lon",
+      lat = "lat",
+      radius = "population",
+      fill_colour = "city_cn",
+      tooltip = c("city_cn", "population")
+    )
+  
+  return(list(gaode = gaode_map, baidu = baidu_map))
+}
+
+# 创建比较地图
+comparison_maps <- create_comparison(chinese_cities, "中国城市")
+```
+
+## Shiny 应用集成
+
+### 基本 Shiny 应用
+
+```{r}
+if (FALSE) {  # Shiny 应用示例
+  library(shiny)
+  
+  ui <- fluidPage(
+    titlePanel("中国地图提供商示例"),
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("provider", "地图提供商:",
+                   choices = c("高德地图" = "gaode", "百度地图" = "baidu"),
+                   selected = "gaode"),
+        selectInput("style", "地图样式:",
+                   choices = c("标准" = "normal", "卫星" = "satellite"),
+                   selected = "normal"),
+        sliderInput("zoom", "缩放级别:", min = 1, max = 18, value = 5),
+        checkboxInput("show_labels", "显示城市标签", value = TRUE)
+      ),
+      mainPanel(
+        mapdeckOutput("map", height = "600px")
+      )
+    )
+  )
+  
+  server <- function(input, output) {
+    output$map <- renderMapdeck({
+      map <- mapdeck(
+        provider = input$provider,
+        style = input$style,
+        zoom = input$zoom,
+        location = c(104, 35)
+      ) %>%
+        add_scatterplot(
+          data = chinese_cities,
+          lon = "lon",
+          lat = "lat",
+          radius = "population",
+          fill_colour = "city_cn",
+          tooltip = c("city_cn", "population")
+        )
+      
+      if (input$show_labels) {
+        map <- map %>%
+          add_text(
+            data = chinese_cities,
+            lon = "lon",
+            lat = "lat",
+            text = "city_cn",
+            size = 12,
+            colour = "#000000"
+          )
+      }
+      
+      map
+    })
+  }
+  
+  shinyApp(ui = ui, server = server)
+}
+```
+
+## 故障排除
+
+### 常见问题和解决方案
+
+#### 1. API 密钥错误
+
+```{r}
+# 验证 API 密钥
+gaode_token_valid <- get_token_store()$validate_token("gaode")
+baidu_token_valid <- get_token_store()$validate_token("baidu")
+
+print(paste("高德令牌有效:", gaode_token_valid))
+print(paste("百度令牌有效:", baidu_token_valid))
+```
+
+#### 2. 坐标转换问题
+
+```{r}
+# 测试坐标转换精度
+test_coords <- data.frame(lon = 116.3974, lat = 39.9093)  # 北京
+
+# 转换和反向转换测试精度
+gcj02_test <- transform_coordinates(test_coords, "WGS84", "GCJ02")
+back_to_wgs84 <- transform_coordinates(gcj02_test, "GCJ02", "WGS84")
+
+cat("原始 WGS84:", test_coords$lon, test_coords$lat, "\n")
+cat("转换后 GCJ02:", gcj02_test$lon, gcj02_test$lat, "\n")
+cat("回到 WGS84:", back_to_wgs84$lon, back_to_wgs84$lat, "\n")
+
+# 计算转换精度
+accuracy <- sqrt((test_coords$lon - back_to_wgs84$lon)^2 + 
+                 (test_coords$lat - back_to_wgs84$lat)^2) * 111000  # 米
+cat("转换精度:", round(accuracy, 2), "米\n")
+```
+
+#### 3. 提供商可用性检查
+
+```{r}
+# 检查提供商可用性
+available_providers <- list_available_providers()
+cat("可用提供商:\n")
+print(available_providers)
+
+gaode_available <- "gaode" %in% available_providers
+baidu_available <- "baidu" %in% available_providers
+
+cat("高德可用:", gaode_available, "\n")
+cat("百度可用:", baidu_available, "\n")
+```
+
+#### 4. 网络连接问题
+
+```{r}
+# 测试提供商连接
+test_provider_connection <- function(provider) {
+  tryCatch({
+    map <- mapdeck(provider = provider, location = c(116.4, 39.9), zoom = 10)
+    cat(provider, "连接成功\n")
+    return(TRUE)
+  }, error = function(e) {
+    cat(provider, "连接失败:", e$message, "\n")
+    return(FALSE)
+  })
+}
+
+test_provider_connection("gaode")
+test_provider_connection("baidu")
+```
+
+## 最佳实践
+
+### 1. API 密钥管理
+
+```{r}
+# 推荐的令牌设置方法
+set_token("your_gaode_api_key", provider = "gaode")
+set_token("your_baidu_api_key", provider = "baidu")
+
+# 检查所有令牌
+mapdeck_tokens()
+```
+
+### 2. 坐标系统处理
+
+- 让 mapdeck 自动处理坐标转换
+- 始终使用 WGS84 坐标作为输入
+- 系统会自动转换为适当的坐标系统
+
+### 3. 性能优化
+
+- 对大数据集使用聚合图层
+- 考虑中国的网络连接情况
+- 测试两个提供商的性能
+
+### 4. 用户体验
+
+- 为中国用户提供中文界面
+- 使用适当的中文字体
+- 考虑中国用户的使用习惯
+
+## 提供商对比
+
+| 特性 | 高德地图 | 百度地图 |
+|------|----------|----------|
+| 坐标系统 | GCJ02 | BD09 |
+| 地图质量 | 高 | 高 |
+| 覆盖范围 | 中国 + 海外 | 主要是中国 |
+| API 限制 | 有配额限制 | 有配额限制 |
+| 免费额度 | 有 | 有 |
+| 开发者支持 | 良好 | 良好 |
+
+## 总结
+
+中国地图提供商为在中国的地图应用提供了优化的解决方案：
+
+- **高德地图**: 适合需要海外覆盖的应用
+- **百度地图**: 适合专注于中国市场的应用
+- **自动坐标转换**: 简化了开发过程
+- **丰富的样式**: 支持多种地图样式
+- **良好的性能**: 针对中国网络环境优化
+
+选择合适的提供商取决于您的具体需求和目标用户群体。
+
+## 下一步
+
+完成中国地图提供商设置后，您可以：
+
+1. 探索[提供商特定示例](provider-examples.html)
+2. 学习[高级提供商功能](advanced-features.html)
+3. 查看[空间采样功能](spatial-sampling.html)
+4. 阅读[性能优化技巧](performance-optimization.html)

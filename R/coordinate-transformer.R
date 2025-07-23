@@ -377,29 +377,357 @@ CoordinateTransformer <- R6::R6Class("CoordinateTransformer",
   )
 )
 
-#' Transform coordinates between different coordinate systems
+#' Transform Coordinates Between Coordinate Systems
 #'
-#' A convenience function for coordinate transformation without creating a class instance.
-#' Supports transformations between WGS84, GCJ02, and BD09 coordinate systems.
+#' Transform coordinates between different coordinate systems using a global transformer instance.
+#'
+#' @description
+#' This function provides a convenient interface to transform coordinates between
+#' WGS84, GCJ02 (Mars Coordinates), and BD09 (Baidu Coordinates) coordinate systems.
+#' It uses a global CoordinateTransformer instance and maintains high precision
+#' with accuracy within 1 meter tolerance.
 #'
 #' @param coords Numeric vector of length 2 (longitude, latitude) or matrix with 2 columns
 #' @param from_crs Source coordinate reference system ("WGS84", "GCJ02", "BD09")
 #' @param to_crs Target coordinate reference system ("WGS84", "GCJ02", "BD09")
+#'
 #' @return Transformed coordinates in same format as input
+#'
+#' @details
+#' Supported coordinate systems:
+#' \itemize{
+#'   \item \strong{WGS84}: World Geodetic System 1984 (standard GPS coordinates)
+#'   \item \strong{GCJ02}: Guojia Cehui Ju 02 (Chinese Mars Coordinates used by Gaode/AutoNavi)
+#'   \item \strong{BD09}: Baidu 09 (Baidu's proprietary coordinate system)
+#' }
+#'
+#' The transformation algorithms implement the official conversion formulas with
+#' optimizations for accuracy and performance. All transformations maintain
+#' precision within 1 meter tolerance as required for mapping applications.
 #'
 #' @examples
 #' \donttest{
 #' # Transform Beijing coordinates from WGS84 to GCJ02
 #' beijing_wgs84 <- c(116.3974, 39.9093)
 #' beijing_gcj02 <- transform_coordinates(beijing_wgs84, "WGS84", "GCJ02")
+#' print(beijing_gcj02)
 #' 
 #' # Transform multiple points
 #' points_wgs84 <- matrix(c(116.3974, 39.9093, 121.4737, 31.2304), ncol = 2, byrow = TRUE)
 #' points_gcj02 <- transform_coordinates(points_wgs84, "WGS84", "GCJ02")
+#' print(points_gcj02)
+#' 
+#' # Chain transformations: WGS84 -> GCJ02 -> BD09
+#' wgs84_point <- c(116.3974, 39.9093)
+#' gcj02_point <- transform_coordinates(wgs84_point, "WGS84", "GCJ02")
+#' bd09_point <- transform_coordinates(gcj02_point, "GCJ02", "BD09")
+#' 
+#' # Verify round-trip accuracy
+#' back_to_wgs84 <- transform_coordinates(bd09_point, "BD09", "GCJ02")
+#' back_to_wgs84 <- transform_coordinates(back_to_wgs84, "GCJ02", "WGS84")
+#' distance_error <- sqrt(sum((wgs84_point - back_to_wgs84)^2)) * 111320  # Convert to meters
+#' print(paste("Round-trip error:", round(distance_error, 2), "meters"))
 #' }
+#'
+#' @seealso \code{\link{detect_coordinate_system}}, \code{\link{auto_transform_for_provider}}, 
+#'   \code{\link{CoordinateTransformer}}
 #'
 #' @export
 transform_coordinates <- function(coords, from_crs, to_crs) {
-  transformer <- CoordinateTransformer$new()
+  transformer <- get_coordinate_transformer()
   return(transformer$transform(coords, from_crs, to_crs))
+}
+
+#' Detect Coordinate System
+#'
+#' Automatically detect the coordinate system of spatial data based on coordinate ranges and patterns.
+#'
+#' @description
+#' This function analyzes coordinate data to automatically determine whether it uses
+#' WGS84, GCJ02, or BD09 coordinate system. It uses statistical analysis of coordinate
+#' ranges and patterns to make the determination.
+#'
+#' @param data Spatial data (sf object, data.frame with coordinates, or coordinate matrix)
+#' @param confidence_threshold Numeric threshold for detection confidence (0-1, default: 0.8)
+#' @param sample_size Integer number of points to sample for analysis (default: 1000)
+#'
+#' @return List containing:
+#'   \itemize{
+#'     \item detected_crs: Most likely coordinate system ("WGS84", "GCJ02", "BD09", or "UNKNOWN")
+#'     \item confidence: Confidence score (0-1)
+#'     \item analysis: Detailed analysis results
+#'   }
+#'
+#' @details
+#' The detection algorithm analyzes:
+#' \itemize{
+#'   \item Coordinate ranges and bounds
+#'   \item Statistical distribution patterns
+#'   \item Offset patterns characteristic of each coordinate system
+#'   \item Geographic clustering within China boundaries
+#' }
+#'
+#' Detection is most accurate for coordinates within China where the different
+#' coordinate systems show distinct patterns. For coordinates outside China,
+#' WGS84 is typically assumed.
+#'
+#' @examples
+#' \donttest{
+#' # Detect coordinate system from data frame
+#' data <- data.frame(
+#'   lon = c(116.3974, 116.4074, 116.3874),
+#'   lat = c(39.9093, 39.9193, 39.8993)
+#' )
+#' detection <- detect_coordinate_system(data)
+#' print(detection$detected_crs)
+#' print(detection$confidence)
+#' 
+#' # Detect from sf object
+#' library(sf)
+#' sf_data <- st_as_sf(data, coords = c("lon", "lat"))
+#' detection <- detect_coordinate_system(sf_data)
+#' 
+#' # Detect with custom confidence threshold
+#' detection <- detect_coordinate_system(data, confidence_threshold = 0.9)
+#' }
+#'
+#' @export
+detect_coordinate_system <- function(data, confidence_threshold = 0.8, sample_size = 1000) {
+  detector <- get_coordinate_detector()
+  return(detector$detect(data, confidence_threshold, sample_size))
+}
+
+#' Auto-Transform for Provider
+#'
+#' Automatically transform data coordinates to match the coordinate system required by a map provider.
+#'
+#' @description
+#' This function automatically detects the coordinate system of input data and
+#' transforms it to the coordinate system required by the specified map provider.
+#' It provides seamless coordinate handling for multi-provider mapping.
+#'
+#' @param data Spatial data to transform
+#' @param provider Character string identifying the target provider
+#' @param source_crs Optional source coordinate system (auto-detected if NULL)
+#' @param validate_accuracy Logical indicating if transformation accuracy should be validated
+#'
+#' @return Transformed spatial data in the provider's coordinate system
+#'
+#' @details
+#' Provider coordinate systems:
+#' \itemize{
+#'   \item \strong{mapbox, leaflet, openlayers}: WGS84 (EPSG:4326)
+#'   \item \strong{gaode}: GCJ02 (Mars Coordinates)
+#'   \item \strong{baidu}: BD09 (Baidu Coordinates)
+#' }
+#'
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Detect source coordinate system (if not specified)
+#'   \item Determine target coordinate system for provider
+#'   \item Transform coordinates if systems differ
+#'   \item Validate transformation accuracy (if requested)
+#' }
+#'
+#' @examples
+#' \donttest{
+#' # Auto-transform data for Gaode provider
+#' wgs84_data <- data.frame(lon = 116.3974, lat = 39.9093)
+#' gaode_data <- auto_transform_for_provider(wgs84_data, "gaode")
+#' 
+#' # Auto-transform with explicit source CRS
+#' baidu_data <- auto_transform_for_provider(wgs84_data, "baidu", source_crs = "WGS84")
+#' 
+#' # Auto-transform with accuracy validation
+#' leaflet_data <- auto_transform_for_provider(
+#'   gaode_data, 
+#'   "leaflet", 
+#'   validate_accuracy = TRUE
+#' )
+#' }
+#'
+#' @export
+auto_transform_for_provider <- function(data, provider, source_crs = NULL, validate_accuracy = FALSE) {
+  
+  # Validate provider
+  if (!is.character(provider) || length(provider) != 1) {
+    stop("Provider must be a single character string")
+  }
+  
+  # Get target coordinate system for provider
+  target_crs <- get_provider_crs(provider)
+  
+  # Detect source coordinate system if not provided
+  if (is.null(source_crs)) {
+    detection <- detect_coordinate_system(data)
+    source_crs <- detection$detected_crs
+    
+    if (source_crs == "UNKNOWN") {
+      warning("Could not reliably detect coordinate system, assuming WGS84")
+      source_crs <- "WGS84"
+    }
+  }
+  
+  # Transform if coordinate systems differ
+  if (source_crs != target_crs) {
+    # Extract coordinates for transformation
+    if (inherits(data, "sf")) {
+      coords <- sf::st_coordinates(data)
+      transformed_coords <- transform_coordinates(coords, source_crs, target_crs)
+      
+      # Update sf object with transformed coordinates
+      data <- sf::st_set_geometry(data, NULL)  # Remove geometry
+      data <- sf::st_as_sf(data, coords = transformed_coords, crs = 4326)
+      
+    } else if (is.data.frame(data)) {
+      # Detect coordinate columns
+      coord_cols <- detect_coordinate_columns(data)
+      coords <- as.matrix(data[, c(coord_cols$x, coord_cols$y)])
+      
+      transformed_coords <- transform_coordinates(coords, source_crs, target_crs)
+      
+      # Update data frame
+      data[, coord_cols$x] <- transformed_coords[, 1]
+      data[, coord_cols$y] <- transformed_coords[, 2]
+      
+    } else {
+      stop("Unsupported data format. Use sf objects or data.frame with coordinates.")
+    }
+    
+    # Validate accuracy if requested
+    if (validate_accuracy) {
+      # Sample a few points for validation
+      sample_indices <- sample(nrow(coords), min(10, nrow(coords)))
+      sample_coords <- coords[sample_indices, , drop = FALSE]
+      sample_transformed <- transformed_coords[sample_indices, , drop = FALSE]
+      
+      transformer <- get_coordinate_transformer()
+      for (i in seq_len(nrow(sample_coords))) {
+        is_accurate <- transformer$validate_accuracy(
+          sample_coords[i, ], sample_transformed[i, ], 
+          source_crs, target_crs
+        )
+        if (!is_accurate) {
+          warning("Transformation accuracy validation failed for some points")
+          break
+        }
+      }
+    }
+  }
+  
+  return(data)
+}
+
+# Global coordinate transformer instance
+.coordinate_transformer <- NULL
+
+#' Get Coordinate Transformer
+#'
+#' Get the global coordinate transformer instance, creating it if necessary.
+#'
+#' @return CoordinateTransformer instance
+#'
+#' @examples
+#' \donttest{
+#' # Get global transformer
+#' transformer <- get_coordinate_transformer()
+#' coords <- transformer$transform(c(116.3974, 39.9093), "WGS84", "GCJ02")
+#' }
+#'
+#' @export
+get_coordinate_transformer <- function() {
+  if (is.null(.coordinate_transformer)) {
+    .coordinate_transformer <<- CoordinateTransformer$new()
+  }
+  return(.coordinate_transformer)
+}
+
+# Global coordinate detector instance
+.coordinate_detector <- NULL
+
+#' Get Coordinate Detector
+#'
+#' Get the global coordinate detector instance, creating it if necessary.
+#'
+#' @return CoordinateDetector instance
+#'
+#' @examples
+#' \donttest{
+#' # Get global detector
+#' detector <- get_coordinate_detector()
+#' result <- detector$detect(data)
+#' }
+#'
+#' @export
+get_coordinate_detector <- function() {
+  if (is.null(.coordinate_detector)) {
+    .coordinate_detector <<- CoordinateDetector$new()
+  }
+  return(.coordinate_detector)
+}
+
+#' Get Provider Coordinate System
+#'
+#' Get the coordinate system used by a specific map provider.
+#'
+#' @param provider Character string identifying the provider
+#' @return Character string identifying the coordinate system
+#'
+#' @examples
+#' \donttest{
+#' # Get coordinate systems for different providers
+#' mapbox_crs <- get_provider_crs("mapbox")  # Returns "WGS84"
+#' gaode_crs <- get_provider_crs("gaode")    # Returns "GCJ02"
+#' baidu_crs <- get_provider_crs("baidu")    # Returns "BD09"
+#' }
+#'
+#' @export
+get_provider_crs <- function(provider) {
+  crs_mapping <- list(
+    "mapbox" = "WGS84",
+    "leaflet" = "WGS84",
+    "openlayers" = "WGS84",
+    "gaode" = "GCJ02",
+    "baidu" = "BD09"
+  )
+  
+  if (provider %in% names(crs_mapping)) {
+    return(crs_mapping[[provider]])
+  } else {
+    warning(sprintf("Unknown provider '%s', assuming WGS84", provider))
+    return("WGS84")
+  }
+}
+
+# Helper function to detect coordinate columns in data frame
+detect_coordinate_columns <- function(data) {
+  col_names <- tolower(names(data))
+  
+  lon_patterns <- c("lon", "lng", "longitude", "x")
+  lat_patterns <- c("lat", "latitude", "y")
+  
+  x_col <- NULL
+  y_col <- NULL
+  
+  for (pattern in lon_patterns) {
+    matches <- grep(pattern, col_names, value = TRUE)
+    if (length(matches) > 0) {
+      x_col <- names(data)[col_names == matches[1]]
+      break
+    }
+  }
+  
+  for (pattern in lat_patterns) {
+    matches <- grep(pattern, col_names, value = TRUE)
+    if (length(matches) > 0) {
+      y_col <- names(data)[col_names == matches[1]]
+      break
+    }
+  }
+  
+  if (is.null(x_col) || is.null(y_col)) {
+    stop("Could not detect coordinate columns. Please ensure data has longitude/latitude or x/y columns.")
+  }
+  
+  return(list(x = x_col, y = y_col))
 }

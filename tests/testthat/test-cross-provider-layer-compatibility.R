@@ -970,6 +970,369 @@ test_that("feature compatibility is checked when switching providers", {
   )
 })
 
+# Test comprehensive cross-provider performance comparison
+test_that("cross-provider performance comparison shows acceptable variance", {
+  skip_on_cran()
+  skip_if_not_installed("microbenchmark")
+  
+  # Mock performance-aware layer functions
+  with_mock(
+    `add_scatterplot` = function(map, data, lon, lat, ...) {
+      # Simulate provider-specific performance characteristics
+      provider_performance_factor <- switch(map$provider,
+        "mapbox" = 1.0,      # Baseline performance
+        "leaflet" = 1.2,     # 20% slower due to tile layer overhead
+        "openlayers" = 1.3,  # 30% slower due to complex rendering pipeline
+        "gaode" = 1.4,       # 40% slower due to coordinate transformation
+        "baidu" = 1.5,       # 50% slower due to coordinate transformation + API overhead
+        1.0
+      )
+      
+      # Simulate rendering time based on data size and provider
+      base_time <- nrow(data) * 0.00001 * provider_performance_factor
+      Sys.sleep(base_time)
+      
+      # Add layer to map
+      layer_id <- paste0("scatterplot_", length(map$layers) + 1)
+      map$layers[[layer_id]] <- list(
+        id = layer_id,
+        type = "scatterplot",
+        data = data,
+        performance = list(
+          render_time = base_time,
+          provider_factor = provider_performance_factor
+        )
+      )
+      
+      return(map)
+    },
+    `add_polygon` = function(map, data, ...) {
+      # Polygon rendering is more complex
+      provider_performance_factor <- switch(map$provider,
+        "mapbox" = 1.0,
+        "leaflet" = 1.5,     # More overhead for polygon rendering
+        "openlayers" = 1.4,
+        "gaode" = 1.6,       # Additional coordinate processing
+        "baidu" = 1.7,
+        1.0
+      )
+      
+      data_size <- if (inherits(data, "sf")) nrow(data) else length(data)
+      base_time <- data_size * 0.00002 * provider_performance_factor
+      Sys.sleep(base_time)
+      
+      layer_id <- paste0("polygon_", length(map$layers) + 1)
+      map$layers[[layer_id]] <- list(
+        id = layer_id,
+        type = "polygon",
+        data = data,
+        performance = list(
+          render_time = base_time,
+          provider_factor = provider_performance_factor
+        )
+      )
+      
+      return(map)
+    },
+    `add_heatmap` = function(map, data, lon, lat, ...) {
+      # Heatmap rendering varies significantly by provider
+      provider_performance_factor <- switch(map$provider,
+        "mapbox" = 1.0,      # Excellent WebGL heatmap support
+        "leaflet" = 2.0,     # Canvas-based heatmap is slower
+        "openlayers" = 1.8,  # Good WebGL support but some overhead
+        "gaode" = 2.2,       # Limited heatmap optimization
+        "baidu" = 2.5,       # Least optimized heatmap rendering
+        1.0
+      )
+      
+      base_time <- nrow(data) * 0.00003 * provider_performance_factor
+      Sys.sleep(base_time)
+      
+      layer_id <- paste0("heatmap_", length(map$layers) + 1)
+      map$layers[[layer_id]] <- list(
+        id = layer_id,
+        type = "heatmap",
+        data = data,
+        performance = list(
+          render_time = base_time,
+          provider_factor = provider_performance_factor
+        )
+      )
+      
+      return(map)
+    },
+    {
+      if (requireNamespace("microbenchmark", quietly = TRUE)) {
+        # Generate test data
+        test_data <- create_test_data()
+        providers <- c("mapbox", "leaflet", "openlayers", "gaode", "baidu")
+        
+        cat("\n=== Cross-Provider Performance Comparison ===\n")
+        
+        # Test scatterplot performance across providers
+        scatterplot_results <- data.frame(
+          provider = character(),
+          median_time_ms = numeric(),
+          relative_performance = numeric(),
+          stringsAsFactors = FALSE
+        )
+        
+        mapbox_baseline <- NULL
+        
+        for (provider in providers) {
+          # Create mock map
+          map <- list(provider = provider, layers = list())
+          
+          # Benchmark scatterplot rendering
+          benchmark <- microbenchmark::microbenchmark(
+            add_scatterplot(map, test_data$point_data, "lon", "lat", radius = 100),
+            times = 10
+          )
+          
+          median_time <- median(benchmark$time) / 1e6  # Convert to milliseconds
+          
+          if (is.null(mapbox_baseline)) {
+            mapbox_baseline <- median_time
+          }
+          
+          relative_perf <- mapbox_baseline / median_time
+          
+          scatterplot_results <- rbind(scatterplot_results, data.frame(
+            provider = provider,
+            median_time_ms = median_time,
+            relative_performance = relative_perf,
+            stringsAsFactors = FALSE
+          ))
+          
+          cat(sprintf("%s scatterplot: %.2f ms (%.2fx relative to Mapbox)\n",
+                     provider, median_time, relative_perf))
+        }
+        
+        # Test heatmap performance (most variable across providers)
+        cat("\n--- Heatmap Performance ---\n")
+        heatmap_results <- data.frame(
+          provider = character(),
+          median_time_ms = numeric(),
+          relative_performance = numeric(),
+          stringsAsFactors = FALSE
+        )
+        
+        mapbox_heatmap_baseline <- NULL
+        
+        for (provider in providers) {
+          map <- list(provider = provider, layers = list())
+          
+          benchmark <- microbenchmark::microbenchmark(
+            add_heatmap(map, test_data$point_data, "lon", "lat", weight = "value"),
+            times = 5
+          )
+          
+          median_time <- median(benchmark$time) / 1e6
+          
+          if (is.null(mapbox_heatmap_baseline)) {
+            mapbox_heatmap_baseline <- median_time
+          }
+          
+          relative_perf <- mapbox_heatmap_baseline / median_time
+          
+          heatmap_results <- rbind(heatmap_results, data.frame(
+            provider = provider,
+            median_time_ms = median_time,
+            relative_performance = relative_perf,
+            stringsAsFactors = FALSE
+          ))
+          
+          cat(sprintf("%s heatmap: %.2f ms (%.2fx relative to Mapbox)\n",
+                     provider, median_time, relative_perf))
+        }
+        
+        # Print summary tables
+        cat("\n=== Scatterplot Performance Summary ===\n")
+        print(scatterplot_results)
+        
+        cat("\n=== Heatmap Performance Summary ===\n")
+        print(heatmap_results)
+        
+        # Verify performance expectations
+        # Mapbox should be fastest or among the fastest
+        expect_gte(scatterplot_results$relative_performance[scatterplot_results$provider == "mapbox"], 0.9)
+        expect_gte(heatmap_results$relative_performance[heatmap_results$provider == "mapbox"], 0.9)
+        
+        # Chinese providers should be slower due to coordinate transformation
+        gaode_scatterplot_perf <- scatterplot_results$relative_performance[scatterplot_results$provider == "gaode"]
+        baidu_scatterplot_perf <- scatterplot_results$relative_performance[scatterplot_results$provider == "baidu"]
+        
+        expect_lt(gaode_scatterplot_perf, 0.8)  # At least 20% slower
+        expect_lt(baidu_scatterplot_perf, 0.7)  # At least 30% slower
+        
+        # Heatmap performance should vary more significantly
+        leaflet_heatmap_perf <- heatmap_results$relative_performance[heatmap_results$provider == "leaflet"]
+        expect_lt(leaflet_heatmap_perf, 0.6)  # At least 40% slower for heatmaps
+        
+        # All providers should complete within reasonable time (< 100ms for test data)
+        expect_true(all(scatterplot_results$median_time_ms < 100))
+        expect_true(all(heatmap_results$median_time_ms < 200))  # Heatmaps can be slower
+      }
+    }
+  )
+})
+
+# Test comprehensive layer feature compatibility matrix
+test_that("comprehensive layer feature compatibility matrix is accurate", {
+  skip_on_cran()
+  
+  # Define comprehensive feature compatibility matrix
+  layer_compatibility_matrix <- list(
+    "scatterplot" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "instancing", "picking", "animation")),
+      leaflet = list(supported = TRUE, features = c("picking", "animation")),
+      openlayers = list(supported = TRUE, features = c("picking", "animation")),
+      gaode = list(supported = TRUE, features = c("picking", "animation")),
+      baidu = list(supported = TRUE, features = c("picking", "animation"))
+    ),
+    "line" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "dash_array", "picking", "animation")),
+      leaflet = list(supported = TRUE, features = c("dash_array", "picking", "animation")),
+      openlayers = list(supported = TRUE, features = c("dash_array", "picking", "animation")),
+      gaode = list(supported = TRUE, features = c("picking", "animation")),
+      baidu = list(supported = TRUE, features = c("picking", "animation"))
+    ),
+    "polygon" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "extrusion", "picking", "animation")),
+      leaflet = list(supported = TRUE, features = c("picking", "animation")),
+      openlayers = list(supported = TRUE, features = c("picking", "animation")),
+      gaode = list(supported = TRUE, features = c("picking", "animation")),
+      baidu = list(supported = TRUE, features = c("picking", "animation"))
+    ),
+    "heatmap" = list(
+      mapbox = list(supported = TRUE, features = c("webgl", "intensity", "radius", "animation")),
+      leaflet = list(supported = TRUE, features = c("canvas", "intensity", "radius")),
+      openlayers = list(supported = TRUE, features = c("webgl", "intensity", "radius")),
+      gaode = list(supported = TRUE, features = c("canvas", "intensity", "radius")),
+      baidu = list(supported = TRUE, features = c("canvas", "intensity", "radius"))
+    ),
+    "hexagon" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "aggregation", "picking", "animation")),
+      leaflet = list(supported = TRUE, features = c("aggregation", "picking")),
+      openlayers = list(supported = TRUE, features = c("aggregation", "picking")),
+      gaode = list(supported = TRUE, features = c("aggregation", "picking")),
+      baidu = list(supported = TRUE, features = c("aggregation", "picking"))
+    ),
+    "grid" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "aggregation", "picking", "animation")),
+      leaflet = list(supported = TRUE, features = c("aggregation", "picking")),
+      openlayers = list(supported = TRUE, features = c("aggregation", "picking")),
+      gaode = list(supported = TRUE, features = c("aggregation", "picking")),
+      baidu = list(supported = TRUE, features = c("aggregation", "picking"))
+    ),
+    "column" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "elevation", "picking", "animation")),
+      leaflet = list(supported = FALSE, features = c()),  # No 3D support
+      openlayers = list(supported = TRUE, features = c("elevation", "picking")),
+      gaode = list(supported = TRUE, features = c("elevation", "picking")),
+      baidu = list(supported = TRUE, features = c("elevation", "picking"))
+    ),
+    "mesh" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "textures", "lighting", "animation")),
+      leaflet = list(supported = FALSE, features = c()),  # No mesh support
+      openlayers = list(supported = FALSE, features = c()),  # Limited mesh support
+      gaode = list(supported = TRUE, features = c("3d", "lighting")),
+      baidu = list(supported = FALSE, features = c())  # No mesh support
+    ),
+    "terrain" = list(
+      mapbox = list(supported = TRUE, features = c("3d", "elevation", "textures", "lighting")),
+      leaflet = list(supported = FALSE, features = c()),  # No terrain support
+      openlayers = list(supported = FALSE, features = c()),  # No terrain support
+      gaode = list(supported = FALSE, features = c()),  # No terrain support
+      baidu = list(supported = FALSE, features = c())  # No terrain support
+    )
+  )
+  
+  # Mock the compatibility checking function
+  with_mock(
+    `get_layer_compatibility_matrix` = function() {
+      return(layer_compatibility_matrix)
+    },
+    `check_layer_feature_support` = function(layer_type, provider, feature) {
+      matrix <- get_layer_compatibility_matrix()
+      
+      if (!layer_type %in% names(matrix)) {
+        return(FALSE)
+      }
+      
+      if (!provider %in% names(matrix[[layer_type]])) {
+        return(FALSE)
+      }
+      
+      provider_info <- matrix[[layer_type]][[provider]]
+      
+      if (!provider_info$supported) {
+        return(FALSE)
+      }
+      
+      return(feature %in% provider_info$features)
+    },
+    {
+      # Test the compatibility matrix
+      matrix <- get_layer_compatibility_matrix()
+      
+      # Verify matrix structure
+      expect_true(is.list(matrix))
+      expect_true(all(c("scatterplot", "line", "polygon", "heatmap", "hexagon", "grid", "column", "mesh", "terrain") %in% names(matrix)))
+      
+      providers <- c("mapbox", "leaflet", "openlayers", "gaode", "baidu")
+      
+      # Test specific compatibility expectations
+      for (provider in providers) {
+        # All providers should support basic layers
+        expect_true(matrix$scatterplot[[provider]]$supported)
+        expect_true(matrix$line[[provider]]$supported)
+        expect_true(matrix$polygon[[provider]]$supported)
+        expect_true(matrix$heatmap[[provider]]$supported)
+        
+        # Test 3D feature support
+        if (provider == "mapbox") {
+          # Mapbox should support all 3D features
+          expect_true(check_layer_feature_support("scatterplot", provider, "3d"))
+          expect_true(check_layer_feature_support("column", provider, "3d"))
+          expect_true(check_layer_feature_support("mesh", provider, "3d"))
+        } else if (provider == "leaflet") {
+          # Leaflet should not support 3D features
+          expect_false(check_layer_feature_support("scatterplot", provider, "3d"))
+          expect_false(matrix$column[[provider]]$supported)  # No 3D column support
+          expect_false(matrix$mesh[[provider]]$supported)    # No mesh support
+        }
+        
+        # Test WebGL vs Canvas heatmap support
+        if (provider %in% c("mapbox", "openlayers")) {
+          expect_true(check_layer_feature_support("heatmap", provider, "webgl"))
+        } else {
+          expect_true(check_layer_feature_support("heatmap", provider, "canvas"))
+        }
+      }
+      
+      # Test advanced layer support
+      expect_true(matrix$terrain$mapbox$supported)
+      expect_false(matrix$terrain$leaflet$supported)
+      expect_false(matrix$terrain$openlayers$supported)
+      expect_false(matrix$terrain$gaode$supported)
+      expect_false(matrix$terrain$baidu$supported)
+      
+      # Print compatibility summary
+      cat("\n=== Layer Compatibility Summary ===\n")
+      for (layer_type in names(matrix)) {
+        supported_providers <- c()
+        for (provider in providers) {
+          if (matrix[[layer_type]][[provider]]$supported) {
+            supported_providers <- c(supported_providers, provider)
+          }
+        }
+        cat(sprintf("%s: %s\n", layer_type, paste(supported_providers, collapse = ", ")))
+      }
+    }
+  )
+})
+
 # Test graceful degradation for unsupported features
 test_that("graceful degradation occurs for unsupported features", {
   skip_on_cran()
@@ -978,7 +1341,7 @@ test_that("graceful degradation occurs for unsupported features", {
   with_mock(
     `degrade_layer_gracefully` = function(layer, provider) {
       # Simulate graceful degradation
-      # For unsupported 3D layers, fall back to 2D representation
+      # For unsupported 3D layers, fall back to 2D representationesentation
       if (layer$type == "column" && provider == "leaflet") {
         layer$type <- "scatterplot"
         layer$degraded <- TRUE

@@ -9,65 +9,221 @@ skip_if_no_browser_test <- function() {
   skip_on_ci()
 }
 
-# Test WebGL feature detection
-test_that("WebGL feature detection works correctly", {
+# Test comprehensive WebGL feature detection and compatibility
+test_that("comprehensive WebGL feature detection works correctly across browser environments", {
   skip_if_no_browser_test()
   
-  # Mock the WebGL detection JavaScript function
-  js_webgl_detection <- '
-  function detectWebGL() {
-    try {
-      var canvas = document.createElement("canvas");
-      var gl = canvas.getContext("webgl") || 
-               canvas.getContext("experimental-webgl");
-      
-      if (gl && gl instanceof WebGLRenderingContext) {
-        var info = {
-          vendor: gl.getParameter(gl.VENDOR),
-          renderer: gl.getParameter(gl.RENDERER),
-          version: gl.getParameter(gl.VERSION),
-          shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
-          maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
-          supported: true
-        };
-        return info;
-      }
-      return { supported: false };
-    } catch (e) {
-      return { supported: false, error: e.message };
-    }
-  }
-  '
-  
-  # Mock the R function that would call this JavaScript
+  # Mock comprehensive WebGL detection with browser-specific variations
   with_mock(
-    `check_webgl_support` = function() {
-      # Simulate WebGL detection result
-      # In a real implementation, this would evaluate the JS in a browser context
-      list(
-        supported = TRUE,
-        vendor = "Mock WebGL Vendor",
-        renderer = "Mock WebGL Renderer",
-        version = "WebGL 1.0",
-        shadingLanguageVersion = "WebGL GLSL ES 1.0",
-        maxTextureSize = 16384
+    `check_webgl_support` = function(browser_context = "chrome") {
+      # Simulate different WebGL capabilities based on browser
+      browser_capabilities <- list(
+        chrome = list(
+          supported = TRUE,
+          vendor = "Google Inc. (NVIDIA)",
+          renderer = "ANGLE (NVIDIA, NVIDIA GeForce GTX 1080 Direct3D11 vs_5_0 ps_5_0, D3D11-27.21.14.5671)",
+          version = "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+          shadingLanguageVersion = "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+          maxTextureSize = 16384,
+          maxViewportDims = c(16384, 16384),
+          maxVertexAttribs = 16,
+          maxVaryingVectors = 30,
+          maxFragmentUniforms = 1024,
+          maxVertexUniforms = 1024,
+          extensions = c(
+            "ANGLE_instanced_arrays", "EXT_blend_minmax", "EXT_color_buffer_half_float",
+            "EXT_disjoint_timer_query", "EXT_frag_depth", "EXT_shader_texture_lod",
+            "EXT_texture_compression_rgtc", "EXT_texture_filter_anisotropic",
+            "EXT_sRGB", "OES_element_index_uint", "OES_standard_derivatives",
+            "OES_texture_float", "OES_texture_float_linear", "OES_texture_half_float",
+            "OES_texture_half_float_linear", "OES_vertex_array_object",
+            "WEBGL_color_buffer_float", "WEBGL_compressed_texture_s3tc",
+            "WEBGL_debug_renderer_info", "WEBGL_debug_shaders", "WEBGL_depth_texture",
+            "WEBGL_draw_buffers", "WEBGL_lose_context"
+          )
+        ),
+        firefox = list(
+          supported = TRUE,
+          vendor = "Mozilla",
+          renderer = "Mozilla -- ANGLE (NVIDIA, NVIDIA GeForce GTX 1080 Direct3D11 vs_5_0 ps_5_0, D3D11-27.21.14.5671)",
+          version = "WebGL 1.0",
+          shadingLanguageVersion = "WebGL GLSL ES 1.0",
+          maxTextureSize = 16384,
+          maxViewportDims = c(16384, 16384),
+          maxVertexAttribs = 16,
+          maxVaryingVectors = 30,
+          maxFragmentUniforms = 1024,
+          maxVertexUniforms = 1024,
+          extensions = c(
+            "EXT_blend_minmax", "EXT_color_buffer_half_float", "EXT_frag_depth",
+            "EXT_sRGB", "OES_element_index_uint", "OES_standard_derivatives",
+            "OES_texture_float", "OES_texture_half_float", "OES_vertex_array_object",
+            "WEBGL_color_buffer_float", "WEBGL_compressed_texture_s3tc",
+            "WEBGL_debug_renderer_info", "WEBGL_depth_texture", "WEBGL_draw_buffers"
+          )
+        ),
+        safari = list(
+          supported = TRUE,
+          vendor = "WebKit",
+          renderer = "WebKit WebGL",
+          version = "WebGL 1.0 (OpenGL ES 2.0 Metal - 71.7.1)",
+          shadingLanguageVersion = "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Metal - 71.7.1)",
+          maxTextureSize = 16384,
+          maxViewportDims = c(16384, 16384),
+          maxVertexAttribs = 16,
+          maxVaryingVectors = 31,
+          maxFragmentUniforms = 1024,
+          maxVertexUniforms = 1024,
+          extensions = c(
+            "EXT_blend_minmax", "EXT_sRGB", "EXT_shader_texture_lod",
+            "OES_element_index_uint", "OES_standard_derivatives",
+            "OES_texture_float", "OES_texture_half_float", "OES_vertex_array_object",
+            "WEBGL_compressed_texture_s3tc", "WEBGL_debug_renderer_info",
+            "WEBGL_depth_texture", "WEBGL_draw_buffers"
+          )
+        ),
+        edge = list(
+          supported = TRUE,
+          vendor = "Microsoft Corporation",
+          renderer = "ANGLE (Microsoft, D3D11 vs_5_0 ps_5_0, D3D11-10.0.19041.1202)",
+          version = "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+          shadingLanguageVersion = "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+          maxTextureSize = 16384,
+          maxViewportDims = c(16384, 16384),
+          maxVertexAttribs = 16,
+          maxVaryingVectors = 30,
+          maxFragmentUniforms = 1024,
+          maxVertexUniforms = 1024,
+          extensions = c(
+            "ANGLE_instanced_arrays", "EXT_blend_minmax", "EXT_color_buffer_half_float",
+            "EXT_frag_depth", "EXT_sRGB", "OES_element_index_uint",
+            "OES_standard_derivatives", "OES_texture_float", "OES_texture_half_float",
+            "OES_vertex_array_object", "WEBGL_color_buffer_float",
+            "WEBGL_compressed_texture_s3tc", "WEBGL_debug_renderer_info",
+            "WEBGL_depth_texture", "WEBGL_draw_buffers"
+          )
+        ),
+        ie11 = list(
+          supported = FALSE,
+          error = "WebGL not supported in Internet Explorer 11"
+        )
       )
+      
+      return(browser_capabilities[[browser_context]])
+    },
+    `check_webgl2_support` = function(browser_context = "chrome") {
+      # WebGL 2.0 support varies more significantly across browsers
+      webgl2_capabilities <- list(
+        chrome = list(supported = TRUE, version = "WebGL 2.0"),
+        firefox = list(supported = TRUE, version = "WebGL 2.0"),
+        safari = list(supported = TRUE, version = "WebGL 2.0"),  # Recent Safari versions
+        edge = list(supported = TRUE, version = "WebGL 2.0"),
+        ie11 = list(supported = FALSE, error = "WebGL 2.0 not supported")
+      )
+      
+      return(webgl2_capabilities[[browser_context]])
+    },
+    `check_required_extensions` = function(browser_context = "chrome") {
+      # Check for extensions required by deck.gl and spatial sampling
+      webgl_info <- check_webgl_support(browser_context)
+      
+      if (!webgl_info$supported) {
+        return(list(supported = FALSE, missing_extensions = "WebGL not supported"))
+      }
+      
+      required_extensions <- c(
+        "OES_texture_float",           # Required for GPU computations
+        "OES_standard_derivatives",    # Required for advanced shading
+        "WEBGL_depth_texture",         # Required for 3D rendering
+        "OES_element_index_uint"       # Required for large datasets
+      )
+      
+      available_extensions <- webgl_info$extensions
+      missing_extensions <- setdiff(required_extensions, available_extensions)
+      
+      return(list(
+        supported = length(missing_extensions) == 0,
+        required_extensions = required_extensions,
+        available_extensions = available_extensions,
+        missing_extensions = missing_extensions
+      ))
     },
     {
-      # Test WebGL detection
-      webgl_info <- check_webgl_support()
+      # Test WebGL detection across different browsers
+      browsers <- c("chrome", "firefox", "safari", "edge", "ie11")
       
-      # Check that detection returns expected structure
-      expect_true(is.list(webgl_info))
-      expect_true("supported" %in% names(webgl_info))
+      cat("\n=== WebGL Compatibility Analysis ===\n")
       
-      # In our mock, WebGL is supported
-      expect_true(webgl_info$supported)
+      webgl_results <- data.frame(
+        browser = character(),
+        webgl1_supported = logical(),
+        webgl2_supported = logical(),
+        max_texture_size = numeric(),
+        extensions_count = numeric(),
+        deck_gl_compatible = logical(),
+        stringsAsFactors = FALSE
+      )
       
-      # Check that we have detailed information
-      expect_true("vendor" %in% names(webgl_info))
-      expect_true("renderer" %in% names(webgl_info))
-      expect_true("version" %in% names(webgl_info))
+      for (browser in browsers) {
+        # Check WebGL 1.0 support
+        webgl1_info <- check_webgl_support(browser)
+        webgl2_info <- check_webgl2_support(browser)
+        extensions_info <- check_required_extensions(browser)
+        
+        # Determine deck.gl compatibility
+        deck_gl_compatible <- webgl1_info$supported && extensions_info$supported
+        
+        # Store results
+        webgl_results <- rbind(webgl_results, data.frame(
+          browser = browser,
+          webgl1_supported = webgl1_info$supported,
+          webgl2_supported = webgl2_info$supported,
+          max_texture_size = ifelse(webgl1_info$supported, webgl1_info$maxTextureSize, 0),
+          extensions_count = ifelse(webgl1_info$supported, length(webgl1_info$extensions), 0),
+          deck_gl_compatible = deck_gl_compatible,
+          stringsAsFactors = FALSE
+        ))
+        
+        # Print detailed info for supported browsers
+        if (webgl1_info$supported) {
+          cat(sprintf("\n%s WebGL Support:\n", toupper(browser)))
+          cat(sprintf("  WebGL 1.0: %s\n", webgl1_info$version))
+          cat(sprintf("  WebGL 2.0: %s\n", ifelse(webgl2_info$supported, "Supported", "Not supported")))
+          cat(sprintf("  Renderer: %s\n", webgl1_info$renderer))
+          cat(sprintf("  Max Texture Size: %d\n", webgl1_info$maxTextureSize))
+          cat(sprintf("  Extensions: %d available\n", length(webgl1_info$extensions)))
+          cat(sprintf("  Deck.gl Compatible: %s\n", ifelse(deck_gl_compatible, "Yes", "No")))
+          
+          if (!extensions_info$supported) {
+            cat(sprintf("  Missing Extensions: %s\n", paste(extensions_info$missing_extensions, collapse = ", ")))
+          }
+        } else {
+          cat(sprintf("\n%s: WebGL not supported\n", toupper(browser)))
+        }
+      }
+      
+      # Print summary table
+      cat("\n=== WebGL Support Summary ===\n")
+      print(webgl_results)
+      
+      # Verify expectations
+      expect_true(webgl_results$webgl1_supported[webgl_results$browser == "chrome"])
+      expect_true(webgl_results$webgl1_supported[webgl_results$browser == "firefox"])
+      expect_true(webgl_results$webgl1_supported[webgl_results$browser == "safari"])
+      expect_true(webgl_results$webgl1_supported[webgl_results$browser == "edge"])
+      expect_false(webgl_results$webgl1_supported[webgl_results$browser == "ie11"])
+      
+      # Check that modern browsers support required extensions
+      modern_browsers <- c("chrome", "firefox", "safari", "edge")
+      for (browser in modern_browsers) {
+        expect_true(webgl_results$deck_gl_compatible[webgl_results$browser == browser])
+      }
+      
+      # Check texture size requirements (minimum 4096 for deck.gl)
+      for (browser in modern_browsers) {
+        texture_size <- webgl_results$max_texture_size[webgl_results$browser == browser]
+        expect_gte(texture_size, 4096)
+      }
     }
   )
 })

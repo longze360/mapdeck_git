@@ -1,0 +1,422 @@
+---
+title: "Provider Setup Guides"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Provider Setup Guides}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+# Provider Setup Guides
+
+This guide provides comprehensive setup instructions for each mapping provider supported by mapdeck. Each provider has different requirements for authentication, configuration, and usage.
+
+## Mapbox Provider
+
+### Overview
+Mapbox GL JS is the default provider for mapdeck, offering high-performance vector maps with 3D capabilities, custom styling, and extensive layer support.
+
+### Authentication Setup
+
+#### Method 1: Global Token (Recommended)
+```{r}
+library(mapdeck)
+
+# Set your Mapbox access token globally
+set_token("pk.your_mapbox_access_token_here", provider = "mapbox")
+
+# Verify token is set
+mapdeck_tokens()
+```
+
+#### Method 2: Environment Variable
+```{r}
+# Set environment variable (add to .Renviron file)
+Sys.setenv(MAPBOX_TOKEN = "pk.your_mapbox_access_token_here")
+
+# Or add to your .Renviron file:
+# MAPBOX_TOKEN=pk.your_mapbox_access_token_here
+```
+
+#### Method 3: Direct Parameter
+```{r}
+# Pass token directly to mapdeck function
+map <- mapdeck(
+  token = "pk.your_mapbox_access_token_here",
+  provider = "mapbox"
+)
+```
+
+### Getting a Mapbox Token
+
+1. Visit [Mapbox Account](https://account.mapbox.com/)
+2. Sign up for a free account
+3. Navigate to "Access tokens" section
+4. Create a new token or use the default public token
+5. Copy the token (starts with `pk.`)
+
+### Basic Usage
+```{r}
+# Create basic Mapbox map
+map <- mapdeck(
+  provider = "mapbox",
+  style = "streets",
+  location = c(-74.006, 40.7128),  # New York
+  zoom = 12,
+  pitch = 45,
+  bearing = 30
+)
+map
+```
+
+### Available Styles
+```{r}
+# Get available Mapbox styles
+styles <- get_available_styles("mapbox")
+print(styles)
+
+# Use different styles
+streets_map <- mapdeck(provider = "mapbox", style = "streets")
+satellite_map <- mapdeck(provider = "mapbox", style = "satellite")
+dark_map <- mapdeck(provider = "mapbox", style = "dark")
+```
+
+### Troubleshooting
+- **Invalid token error**: Verify your token is correct and active
+- **Rate limiting**: Check your Mapbox account usage limits
+- **Style loading issues**: Ensure you have internet connectivity
+
+---
+
+## Leaflet Provider
+
+### Overview
+Leaflet is a popular open-source mapping library that provides tile-based maps with deck.gl overlay support. It's free to use and supports numerous tile providers.
+
+### Setup (No Authentication Required)
+```{r}
+library(mapdeck)
+
+# Leaflet doesn't require authentication tokens
+map <- mapdeck(
+  provider = "leaflet",
+  location = c(144.9631, -37.8136),  # Melbourne
+  zoom = 10
+)
+map
+```
+
+### Available Tile Providers
+```{r}
+# Get available Leaflet tile providers
+providers <- get_available_styles("leaflet")
+print(providers)
+
+# Use different tile providers
+osm_map <- mapdeck(provider = "leaflet", style = "streets")      # OpenStreetMap
+light_map <- mapdeck(provider = "leaflet", style = "light")      # CartoDB Positron
+dark_map <- mapdeck(provider = "leaflet", style = "dark")        # CartoDB DarkMatter
+satellite_map <- mapdeck(provider = "leaflet", style = "satellite") # Esri WorldImagery
+```
+
+### Limitations
+- **No 3D support**: Pitch and bearing are always 0
+- **Limited elevation effects**: Column layers use scaled circles instead
+- **Tile-based styling only**: No custom vector styles
+
+### Best Practices
+```{r}
+# Use appropriate aggregation for large datasets
+large_data <- data.frame(
+  lon = runif(5000, 144.5, 145.5),
+  lat = runif(5000, -38.2, -37.4),
+  value = rnorm(5000, 100, 20)
+)
+
+# Screengrid works well with Leaflet
+map <- mapdeck(provider = "leaflet", style = "light") %>%
+  add_screengrid(
+    data = large_data,
+    lon = "lon",
+    lat = "lat",
+    weight = "value",
+    cell_size = 50
+  )
+```
+
+---
+
+## OpenLayers Provider
+
+### Overview
+OpenLayers is a powerful open-source mapping library that supports various data sources and projections with deck.gl integration.
+
+### Setup (No Authentication Required)
+```{r}
+library(mapdeck)
+
+# OpenLayers doesn't require authentication
+map <- mapdeck(
+  provider = "openlayers",
+  location = c(2.3522, 48.8566),  # Paris
+  zoom = 12
+)
+map
+```
+
+### Configuration Options
+```{r}
+# OpenLayers with custom configuration
+map <- mapdeck(
+  provider = "openlayers",
+  location = c(0, 0),
+  zoom = 2,
+  config = list(
+    projection = "EPSG:3857",  # Web Mercator
+    source_type = "OSM",       # OpenStreetMap tiles
+    attribution = "© OpenStreetMap contributors"
+  )
+)
+```
+
+### Available Sources
+```{r}
+# Get available OpenLayers sources
+sources <- get_available_styles("openlayers")
+print(sources)
+
+# Use different sources
+osm_map <- mapdeck(provider = "openlayers", style = "osm")
+stamen_map <- mapdeck(provider = "openlayers", style = "stamen_terrain")
+```
+
+### Advanced Features
+- **Multiple projections**: Support for various coordinate systems
+- **Custom sources**: Ability to add custom tile sources
+- **Vector layers**: Support for vector data sources
+
+---
+
+## Gaode Maps Provider (高德地图)
+
+### Overview
+Gaode Maps (AutoNavi) is a popular Chinese mapping service that uses the GCJ02 coordinate system. It requires an API key for access.
+
+### Authentication Setup
+
+#### Getting a Gaode API Key
+1. Visit [Gaode Maps Console](https://console.amap.com/)
+2. Register for a developer account
+3. Create a new application
+4. Generate a Web API key
+5. Copy the API key
+
+#### Setting Up Authentication
+```{r}
+library(mapdeck)
+
+# Set Gaode API key
+set_token("your_gaode_api_key_here", provider = "gaode")
+
+# Or use environment variable
+Sys.setenv(GAODE_API_KEY = "your_gaode_api_key_here")
+
+# Verify token is set
+mapdeck_tokens()
+```
+
+### Basic Usage
+```{r}
+# Create Gaode map (coordinates will be auto-transformed to GCJ02)
+map <- mapdeck(
+  provider = "gaode",
+  location = c(116.3974, 39.9093),  # Beijing (WGS84 coordinates)
+  zoom = 12,
+  style = "normal"
+)
+map
+```
+
+### Coordinate System Handling
+```{r}
+# Gaode uses GCJ02 coordinate system
+# mapdeck automatically transforms coordinates
+
+# WGS84 data (standard GPS coordinates)
+wgs84_data <- data.frame(
+  lon = c(116.3974, 121.4737),  # Beijing, Shanghai
+  lat = c(39.9093, 31.2304),
+  city = c("Beijing", "Shanghai")
+)
+
+# Coordinates are automatically transformed to GCJ02
+map <- mapdeck(provider = "gaode") %>%
+  add_scatterplot(
+    data = wgs84_data,
+    lon = "lon",
+    lat = "lat",
+    radius = 100000,
+    fill_colour = "city"
+  )
+```
+
+### Available Styles
+```{r}
+# Get available Gaode styles
+styles <- get_available_styles("gaode")
+print(styles)
+
+# Use different Gaode styles
+normal_map <- mapdeck(provider = "gaode", style = "normal")
+satellite_map <- mapdeck(provider = "gaode", style = "satellite")
+```
+
+### Troubleshooting
+- **API key errors**: Verify your key is active and has proper permissions
+- **Coordinate issues**: Ensure coordinate transformation is enabled
+- **Rate limiting**: Check your Gaode account usage quotas
+
+---
+
+## Baidu Maps Provider (百度地图)
+
+### Overview
+Baidu Maps is another major Chinese mapping service that uses the BD09 coordinate system. It requires an API key for access.
+
+### Authentication Setup
+
+#### Getting a Baidu API Key
+1. Visit [Baidu Map Open Platform](https://lbsyun.baidu.com/)
+2. Register for a developer account
+3. Create a new application
+4. Generate a JavaScript API key
+5. Copy the API key
+
+#### Setting Up Authentication
+```{r}
+library(mapdeck)
+
+# Set Baidu API key
+set_token("your_baidu_api_key_here", provider = "baidu")
+
+# Or use environment variable
+Sys.setenv(BAIDU_API_KEY = "your_baidu_api_key_here")
+
+# Verify token is set
+mapdeck_tokens()
+```
+
+### Basic Usage
+```{r}
+# Create Baidu map (coordinates will be auto-transformed to BD09)
+map <- mapdeck(
+  provider = "baidu",
+  location = c(116.3974, 39.9093),  # Beijing (WGS84 coordinates)
+  zoom = 12,
+  style = "normal"
+)
+map
+```
+
+### Coordinate System Handling
+```{r}
+# Baidu uses BD09 coordinate system
+# mapdeck automatically transforms coordinates
+
+# WGS84 data
+wgs84_data <- data.frame(
+  lon = c(116.3974, 121.4737, 113.2644),  # Beijing, Shanghai, Guangzhou
+  lat = c(39.9093, 31.2304, 23.1291),
+  city = c("Beijing", "Shanghai", "Guangzhou")
+)
+
+# Coordinates are automatically transformed to BD09
+map <- mapdeck(provider = "baidu") %>%
+  add_scatterplot(
+    data = wgs84_data,
+    lon = "lon",
+    lat = "lat",
+    radius = 100000,
+    fill_colour = "city"
+  )
+```
+
+### Available Styles
+```{r}
+# Get available Baidu styles
+styles <- get_available_styles("baidu")
+print(styles)
+
+# Use different Baidu styles
+normal_map <- mapdeck(provider = "baidu", style = "normal")
+satellite_map <- mapdeck(provider = "baidu", style = "satellite")
+dark_map <- mapdeck(provider = "baidu", style = "dark")
+```
+
+---
+
+## Provider Comparison
+
+| Feature | Mapbox | Leaflet | OpenLayers | Gaode | Baidu |
+|---------|--------|---------|------------|-------|-------|
+| Authentication | Required | None | None | Required | Required |
+| 3D Support | Yes | No | Limited | Yes | Yes |
+| Custom Styles | Yes | Limited | Yes | Limited | Limited |
+| Coordinate Systems | WGS84 | WGS84 | Multiple | GCJ02 | BD09 |
+| Free Tier | Limited | Yes | Yes | Limited | Limited |
+| China Access | Limited | Yes | Yes | Optimized | Optimized |
+
+## General Troubleshooting
+
+### Common Issues
+
+1. **Provider not available**
+   ```{r}
+   # Check available providers
+   providers <- list_available_providers()
+   print(providers)
+   ```
+
+2. **Authentication failures**
+   ```{r}
+   # Validate tokens
+   token_valid <- get_token_store()$validate_token("mapbox")
+   print(paste("Token valid:", token_valid))
+   ```
+
+3. **Coordinate transformation issues**
+   ```{r}
+   # Check coordinate system detection
+   coords <- data.frame(lon = 116.3974, lat = 39.9093)
+   detected_crs <- detect_coordinate_system(coords)
+   print(detected_crs)
+   ```
+
+4. **Performance issues**
+   ```{r}
+   # Check provider capabilities
+   capabilities <- get_provider_capabilities("leaflet")
+   print(capabilities)
+   ```
+
+### Getting Help
+
+- Check the [mapdeck documentation](https://symbolixau.github.io/mapdeck/)
+- Review provider-specific documentation
+- Check GitHub issues for known problems
+- Use `validate_provider_interface()` to test provider implementations
+
+## Next Steps
+
+After setting up your preferred provider, explore:
+- [Provider-specific examples](provider-examples.html)
+- [Migration guide](migration-guide.html) for switching from single to multi-provider usage
+- [Advanced features](advanced-features.html) for each provider

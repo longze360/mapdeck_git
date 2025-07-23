@@ -2,21 +2,30 @@
 % Please edit documentation in R/spatial-sampling-engine.R
 \name{create_sampling_engine}
 \alias{create_sampling_engine}
-\title{Create Spatial Sampling Engine}
+\title{Create Sampling Engine}
 \usage{
 create_sampling_engine(config = list())
 }
 \arguments{
-\item{config}{Optional list containing engine configuration:
-- fallback_threshold: Numeric threshold for GPU/CPU switching (default: 10000)
-- gpu_enabled: Logical to force enable/disable GPU (auto-detected if NULL)}
+\item{config}{List containing engine configuration options:
+\itemize{
+  \item fallback_threshold: Point count threshold for GPU vs CPU (default: 10000)
+  \item gpu_enabled: Force enable/disable GPU acceleration (default: auto-detect)
+  \item performance_monitoring: Enable performance tracking (default: TRUE)
+  \item memory_limit: Maximum memory usage in MB (default: 1000)
+  \item concurrent_threads: Number of threads for concurrent processing (default: auto)
+}}
 }
 \value{
 Initialized SamplingEngine instance
 }
 \description{
-Create and initialize a SamplingEngine instance for reuse across
-multiple sampling operations.
+This function creates a new SamplingEngine instance with custom configuration
+options. The engine handles spatial sampling operations with automatic
+GPU/CPU optimization and performance monitoring.
+}
+\details{
+Create and initialize a new spatial sampling engine with specified configuration.
 }
 \examples{
 \donttest{
@@ -24,16 +33,15 @@ multiple sampling operations.
 engine <- create_sampling_engine()
 
 # Create engine with custom configuration
-config <- list(fallback_threshold = 5000)
-custom_engine <- create_sampling_engine(config)
+engine <- create_sampling_engine(config = list(
+  fallback_threshold = 5000,
+  gpu_enabled = TRUE,
+  performance_monitoring = TRUE,
+  memory_limit = 2000
+))
 
-# Use engine for multiple operations
-samples1 <- spatial_sample_random(data1, n = 100, engine = engine)
-samples2 <- spatial_sample_grid(data2, grid_size = 0.01, engine = engine)
-
-# Check performance statistics
-stats <- engine$get_performance_stats()
-print(stats)
+# Use custom engine for sampling
+samples <- spatial_sample_random(data, n = 1000, engine = engine)
 }
 
 }

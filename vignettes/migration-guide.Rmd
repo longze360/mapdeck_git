@@ -1,0 +1,555 @@
+---
+title: "Migration Guide: Single to Multi-Provider Usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Migration Guide: Single to Multi-Provider Usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+# Migration Guide: Single to Multi-Provider Usage
+
+This guide helps you migrate from the single-provider mapdeck to the new multi-provider version while maintaining backward compatibility and exploring new features.
+
+## Overview
+
+The multi-provider version of mapdeck maintains **100% backward compatibility** with existing code while adding support for multiple mapping providers. Your existing code will continue to work without any modifications.
+
+## Backward Compatibility
+
+### Existing Code Continues to Work
+
+All your existing mapdeck code will work exactly as before:
+
+```{r}
+# This code works identically in both versions
+library(mapdeck)
+
+# Set token (still works for Mapbox)
+set_token("pk.your_mapbox_token")
+
+# Create map (defaults to Mapbox)
+map <- mapdeck(
+  location = c(-74.006, 40.7128),
+  zoom = 12,
+  style = "streets"
+)
+
+# Add layers (no changes)
+map %>%
+  add_scatterplot(
+    data = capitals,
+    lon = "lon",
+    lat = "lat",
+    radius = 50000,
+    fill_colour = "country"
+  )
+```
+
+### What Hasn't Changed
+
+- All existing function signatures remain the same
+- Default behavior is identical (Mapbox provider)
+- All layer functions work exactly as before
+- Token management for Mapbox is unchanged
+- Style names and options are preserved
+- Shiny integration remains the same
+
+## New Multi-Provider Features
+
+### 1. Provider Selection
+
+The main new feature is the ability to specify different providers:
+
+```{r}
+# Old way (still works)
+map_old <- mapdeck(location = c(0, 0), zoom = 2)
+
+# New way with explicit provider
+map_new <- mapdeck(
+  provider = "mapbox",  # Explicit provider selection
+  location = c(0, 0), 
+  zoom = 2
+)
+
+# Alternative providers
+leaflet_map <- mapdeck(provider = "leaflet", location = c(0, 0), zoom = 2)
+gaode_map <- mapdeck(provider = "gaode", location = c(116.4, 39.9), zoom = 10)
+```
+
+### 2. Enhanced Token Management
+
+Token management now supports multiple providers:
+
+```{r}
+# Old way (still works for Mapbox)
+set_token("pk.your_mapbox_token")
+
+# New way with provider specification
+set_token("pk.your_mapbox_token", provider = "mapbox")
+set_token("your_gaode_api_key", provider = "gaode")
+set_token("your_baidu_api_key", provider = "baidu")
+
+# View all tokens
+mapdeck_tokens()
+```
+
+### 3. Provider-Specific Styling
+
+Styles now adapt to the selected provider:
+
+```{r}
+# Mapbox styles
+mapbox_map <- mapdeck(provider = "mapbox", style = "streets")
+
+# Leaflet tile providers
+leaflet_map <- mapdeck(provider = "leaflet", style = "streets")  # OSM
+leaflet_dark <- mapdeck(provider = "leaflet", style = "dark")    # CartoDB Dark
+
+# Chinese provider styles
+gaode_map <- mapdeck(provider = "gaode", style = "satellite")
+```
+
+## Step-by-Step Migration
+
+### Step 1: Update Your Package
+
+```{r}
+# Install the multi-provider version
+# (Your existing code will still work)
+library(mapdeck)
+```
+
+### Step 2: Test Existing Code
+
+Run your existing code to ensure everything works:
+
+```{r}
+# Your existing code should work without changes
+existing_map <- mapdeck(
+  token = "pk.your_token",  # Still works
+  style = "streets",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+) %>%
+  add_scatterplot(
+    data = your_data,
+    lon = "longitude",
+    lat = "latitude",
+    radius = 1000,
+    fill_colour = "category"
+  )
+```
+
+### Step 3: Gradually Adopt New Features
+
+Start using new features incrementally:
+
+```{r}
+# Add explicit provider specification
+updated_map <- mapdeck(
+  provider = "mapbox",      # NEW: Explicit provider
+  token = "pk.your_token",  # Same as before
+  style = "streets",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+) %>%
+  add_scatterplot(
+    data = your_data,
+    lon = "longitude",
+    lat = "latitude",
+    radius = 1000,
+    fill_colour = "category"
+  )
+```
+
+### Step 4: Explore Alternative Providers
+
+Try different providers for comparison:
+
+```{r}
+# Create the same visualization with different providers
+create_comparison_maps <- function(data) {
+  
+  base_config <- list(
+    location = c(-74.006, 40.7128),
+    zoom = 12
+  )
+  
+  # Mapbox version
+  mapbox_map <- mapdeck(provider = "mapbox", !!!base_config) %>%
+    add_scatterplot(data = data, lon = "lon", lat = "lat", 
+                   radius = 1000, fill_colour = "category")
+  
+  # Leaflet version
+  leaflet_map <- mapdeck(provider = "leaflet", !!!base_config) %>%
+    add_scatterplot(data = data, lon = "lon", lat = "lat", 
+                   radius = 1000, fill_colour = "category")
+  
+  return(list(mapbox = mapbox_map, leaflet = leaflet_map))
+}
+```
+
+## Common Migration Scenarios
+
+### Scenario 1: Basic Map Creation
+
+**Before:**
+```{r}
+map <- mapdeck(
+  token = "pk.your_token",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+)
+```
+
+**After (with new features):**
+```{r}
+# Set token globally (recommended)
+set_token("pk.your_token", provider = "mapbox")
+
+# Create map with explicit provider
+map <- mapdeck(
+  provider = "mapbox",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+)
+
+# Or try alternative provider
+leaflet_map <- mapdeck(
+  provider = "leaflet",
+  location = c(-74.006, 40.7128),
+  zoom = 12
+)
+```
+
+### Scenario 2: Multiple Maps in Application
+
+**Before:**
+```{r}
+# Multiple maps with same provider
+map1 <- mapdeck(token = "pk.token", style = "streets")
+map2 <- mapdeck(token = "pk.token", style = "satellite")
+map3 <- mapdeck(token = "pk.token", style = "dark")
+```
+
+**After:**
+```{r}
+# Set token once
+set_token("pk.your_token", provider = "mapbox")
+
+# Mix providers for different use cases
+overview_map <- mapdeck(provider = "leaflet", style = "streets")    # Free overview
+detail_map <- mapdeck(provider = "mapbox", style = "satellite")     # Detailed satellite
+analysis_map <- mapdeck(provider = "mapbox", style = "dark")        # Dark theme for analysis
+```
+
+### Scenario 3: Shiny Applications
+
+**Before:**
+```{r}
+# Shiny server function
+server <- function(input, output) {
+  output$map <- renderMapdeck({
+    mapdeck(
+      token = "pk.your_token",
+      style = input$style,
+      location = c(input$lon, input$lat),
+      zoom = input$zoom
+    )
+  })
+}
+```
+
+**After:**
+```{r}
+# Enhanced Shiny server with provider selection
+server <- function(input, output) {
+  output$map <- renderMapdeck({
+    mapdeck(
+      provider = input$provider,  # NEW: User can select provider
+      style = input$style,
+      location = c(input$lon, input$lat),
+      zoom = input$zoom
+    )
+  })
+}
+
+# Enhanced UI with provider selection
+ui <- fluidPage(
+  selectInput("provider", "Map Provider:",
+             choices = list_available_providers(),
+             selected = "mapbox"),
+  selectInput("style", "Map Style:",
+             choices = NULL),  # Populated based on provider
+  mapdeckOutput("map")
+)
+```
+
+### Scenario 4: Data Analysis Workflows
+
+**Before:**
+```{r}
+analyze_spatial_data <- function(data) {
+  map <- mapdeck(token = "pk.token") %>%
+    add_scatterplot(data = data, lon = "lon", lat = "lat")
+  
+  return(map)
+}
+```
+
+**After:**
+```{r}
+analyze_spatial_data <- function(data, provider = "mapbox") {
+  # Provider-agnostic analysis
+  map <- mapdeck(provider = provider) %>%
+    add_scatterplot(data = data, lon = "lon", lat = "lat")
+  
+  return(map)
+}
+
+# Use different providers for different purposes
+exploratory_map <- analyze_spatial_data(data, "leaflet")    # Free exploration
+publication_map <- analyze_spatial_data(data, "mapbox")     # High-quality output
+```
+
+## Advanced Migration Features
+
+### Provider Switching
+
+Switch between providers while preserving your visualization:
+
+```{r}
+# Create map with one provider
+original_map <- mapdeck(provider = "mapbox") %>%
+  add_scatterplot(data = capitals, lon = "lon", lat = "lat", 
+                 radius = 50000, fill_colour = "country")
+
+# Switch to different provider (preserves layers)
+switched_map <- update_provider(original_map, "leaflet")
+```
+
+### Coordinate System Handling
+
+The system automatically handles coordinate transformations:
+
+```{r}
+# Your WGS84 data works with all providers
+wgs84_data <- data.frame(
+  lon = c(116.3974, 121.4737),  # Beijing, Shanghai
+  lat = c(39.9093, 31.2304)
+)
+
+# Automatically transforms to appropriate coordinate system
+mapbox_map <- mapdeck(provider = "mapbox") %>%
+  add_scatterplot(data = wgs84_data, lon = "lon", lat = "lat")
+
+gaode_map <- mapdeck(provider = "gaode") %>%
+  add_scatterplot(data = wgs84_data, lon = "lon", lat = "lat")  # Auto-transforms to GCJ02
+```
+
+### Style Compatibility
+
+Styles are automatically mapped between providers:
+
+```{r}
+# Generic style names work across providers
+create_styled_map <- function(provider) {
+  mapdeck(provider = provider, style = "dark") %>%
+    add_scatterplot(data = capitals, lon = "lon", lat = "lat")
+}
+
+mapbox_dark <- create_styled_map("mapbox")    # Uses Mapbox dark style
+leaflet_dark <- create_styled_map("leaflet")  # Uses CartoDB DarkMatter
+```
+
+## Best Practices for Migration
+
+### 1. Gradual Adoption
+
+- Start by adding explicit `provider = "mapbox"` to existing code
+- Test one provider at a time
+- Gradually explore alternative providers
+
+### 2. Token Management
+
+```{r}
+# Recommended approach
+set_token("pk.mapbox_token", provider = "mapbox")
+set_token("gaode_api_key", provider = "gaode")
+set_token("baidu_api_key", provider = "baidu")
+
+# Check all tokens are set
+mapdeck_tokens()
+```
+
+### 3. Provider Selection Strategy
+
+```{r}
+# Choose providers based on use case
+choose_provider <- function(use_case) {
+  switch(use_case,
+    "exploration" = "leaflet",      # Free, good for exploration
+    "publication" = "mapbox",       # High quality, 3D support
+    "china" = "gaode",             # Optimized for China
+    "analysis" = "mapbox"          # Advanced features
+  )
+}
+
+provider <- choose_provider("exploration")
+map <- mapdeck(provider = provider)
+```
+
+### 4. Error Handling
+
+```{r}
+# Robust provider selection with fallbacks
+create_map_safely <- function(preferred_provider = "mapbox") {
+  tryCatch({
+    mapdeck(provider = preferred_provider)
+  }, error = function(e) {
+    warning(paste("Failed to create", preferred_provider, "map:", e$message))
+    # Fallback to Leaflet (no authentication required)
+    mapdeck(provider = "leaflet")
+  })
+}
+```
+
+## Testing Your Migration
+
+### Compatibility Check
+
+```{r}
+# Test that your existing code still works
+test_backward_compatibility <- function() {
+  
+  # Test 1: Basic map creation
+  map1 <- mapdeck(location = c(0, 0), zoom = 2)
+  stopifnot(inherits(map1, "mapdeck"))
+  
+  # Test 2: Token setting
+  set_token("test_token")
+  token <- get_access_token()
+  stopifnot(!is.null(token))
+  
+  # Test 3: Layer addition
+  map2 <- mapdeck() %>%
+    add_scatterplot(data = capitals, lon = "lon", lat = "lat")
+  stopifnot(inherits(map2, "mapdeck"))
+  
+  cat("✓ All backward compatibility tests passed\n")
+}
+
+test_backward_compatibility()
+```
+
+### New Features Test
+
+```{r}
+# Test new multi-provider features
+test_new_features <- function() {
+  
+  # Test 1: Provider specification
+  providers <- c("mapbox", "leaflet")
+  for (provider in providers) {
+    if (provider %in% list_available_providers()) {
+      map <- mapdeck(provider = provider)
+      stopifnot(inherits(map, "mapdeck"))
+      cat("✓", provider, "provider works\n")
+    }
+  }
+  
+  # Test 2: Multi-provider tokens
+  set_token("test_mapbox", provider = "mapbox")
+  set_token("test_leaflet", provider = "leaflet")
+  tokens <- mapdeck_tokens()
+  stopifnot(length(tokens) >= 2)
+  cat("✓ Multi-provider tokens work\n")
+  
+  # Test 3: Provider switching
+  if ("leaflet" %in% list_available_providers()) {
+    map1 <- mapdeck(provider = "mapbox")
+    map2 <- update_provider(map1, "leaflet")
+    stopifnot(inherits(map2, "mapdeck"))
+    cat("✓ Provider switching works\n")
+  }
+}
+
+test_new_features()
+```
+
+## Troubleshooting Migration Issues
+
+### Common Issues and Solutions
+
+1. **"Provider not found" error**
+   ```{r}
+   # Check available providers
+   available <- list_available_providers()
+   print(available)
+   
+   # Use only available providers
+   if ("leaflet" %in% available) {
+     map <- mapdeck(provider = "leaflet")
+   }
+   ```
+
+2. **Token authentication issues**
+   ```{r}
+   # Clear and reset tokens
+   clear_tokens()
+   set_token("your_new_token", provider = "mapbox")
+   
+   # Verify token
+   token_valid <- get_token_store()$validate_token("mapbox")
+   print(paste("Token valid:", token_valid))
+   ```
+
+3. **Style compatibility issues**
+   ```{r}
+   # Check available styles for provider
+   styles <- get_available_styles("leaflet")
+   print(styles)
+   
+   # Use compatible style
+   map <- mapdeck(provider = "leaflet", style = styles[1])
+   ```
+
+4. **Coordinate system issues**
+   ```{r}
+   # Check coordinate system detection
+   coords <- data.frame(lon = 116.4, lat = 39.9)
+   crs <- detect_coordinate_system(coords)
+   print(paste("Detected CRS:", crs))
+   
+   # Force coordinate transformation if needed
+   transformed <- transform_coordinates(coords, "WGS84", "GCJ02")
+   ```
+
+## Summary
+
+The migration to multi-provider mapdeck is designed to be seamless:
+
+- **No breaking changes**: All existing code continues to work
+- **Gradual adoption**: Add new features at your own pace  
+- **Enhanced capabilities**: Access to multiple mapping providers
+- **Improved flexibility**: Choose the best provider for each use case
+
+Start by testing your existing code, then gradually explore the new multi-provider features to enhance your mapping applications.
+
+## Next Steps
+
+After completing your migration:
+
+1. Explore [provider-specific examples](provider-examples.html)
+2. Learn about [advanced provider features](advanced-features.html)
+3. Check out [spatial sampling capabilities](spatial-sampling.html)
+4. Review [performance optimization tips](performance-optimization.html)

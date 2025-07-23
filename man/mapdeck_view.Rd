@@ -17,13 +17,16 @@ mapdeck_view(
 \arguments{
 \item{map}{a \code{mapdeck} map object}
 
-\item{location}{unnamed vector of lon and lat coordinates (in that order)}
+\item{location}{Numeric vector of initial map center coordinates c(longitude, latitude).
+Coordinates will be automatically transformed for Chinese providers if needed.}
 
-\item{zoom}{zoom level of the map}
+\item{zoom}{Initial zoom level of the map (typically 0-20, varies by provider).}
 
-\item{pitch}{the pitch angle of the map}
+\item{pitch}{The pitch angle of the map in degrees (0-60). Note: Not all providers
+support pitch (e.g., Leaflet is limited to 0).}
 
-\item{bearing}{bearing of the map between 0 and 360}
+\item{bearing}{Initial bearing/rotation of the map in degrees (0-360). Note: Not all
+providers support bearing (e.g., Leaflet is limited to 0).}
 
 \item{duration}{time in milliseconds of the transition}
 

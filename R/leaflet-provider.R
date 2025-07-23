@@ -15,11 +15,6 @@ NULL
 #' provider interface with deck.gl overlay support. It supports various
 #' tile providers and Leaflet-specific features.
 #'
-#' @field leaflet_config Leaflet-specific configuration
-#' @field tile_provider Current tile provider configuration
-#' @field current_style Current map style/tile layer
-#' @field layers List of active deck.gl layers
-#' @field map_instance Reference to the map instance
 #'
 #' @examples
 #' \donttest{

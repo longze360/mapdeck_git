@@ -13,14 +13,6 @@ Manages WebGL compute shaders for spatial sampling operations.
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{gl_context}}{WebGL rendering context}
-
-\item{\code{shaders}}{List of compiled shader programs}
-
-\item{\code{buffers}}{List of GPU buffer objects}
-
-\item{\code{initialized}}{Logical indicating initialization status}
-
 \item{\code{gl_context}}{WebGL context}
 
 \item{\code{shaders}}{Compiled shader programs}

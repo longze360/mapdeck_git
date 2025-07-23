@@ -15,10 +15,6 @@ NULL
 #' The WebGLShaderManager class handles creation, compilation, and execution
 #' of WebGL compute shaders for high-performance spatial sampling.
 #'
-#' @field gl_context WebGL rendering context
-#' @field shaders List of compiled shader programs
-#' @field buffers List of GPU buffer objects
-#' @field initialized Logical indicating initialization status
 #'
 #' @export
 WebGLShaderManager <- R6::R6Class("WebGLShaderManager",
@@ -41,7 +37,6 @@ WebGLShaderManager <- R6::R6Class("WebGLShaderManager",
     #'
     #' @return Logical indicating success
     initialize = function() {
-      tryCatch({
         # In a real implementation, this would:
         # 1. Get WebGL context from HTML canvas
         # 2. Check for WebGL 2.0 and compute shader support
@@ -55,10 +50,6 @@ WebGLShaderManager <- R6::R6Class("WebGLShaderManager",
         self$initialized <- TRUE
         
         return(TRUE)
-      }, error = function(e) {
-        warning("WebGL initialization failed: ", e$message)
-        return(FALSE)
-      })
     },
     
     #' Execute Random Sampling Shader

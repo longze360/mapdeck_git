@@ -4,28 +4,35 @@
 \alias{check_gpu_acceleration}
 \title{Check GPU Acceleration Availability}
 \usage{
-check_gpu_acceleration()
+check_gpu_acceleration(detailed = FALSE, test_operations = FALSE)
+}
+\arguments{
+\item{detailed}{Logical indicating if detailed capability information should be returned}
+
+\item{test_operations}{Logical indicating if actual GPU operations should be tested}
 }
 \value{
-List containing GPU availability information:
-  - available: Logical indicating if GPU is available
-  - reason: Character string explaining availability status
-  - fallback_threshold: Current threshold for GPU/CPU switching
+Logical indicating GPU availability, or list with detailed information if detailed=TRUE
 }
 \description{
+This function tests whether GPU acceleration through WebGL compute shaders
+is available and functional for spatial sampling operations. It performs
+basic capability detection and validation tests.
+}
+\details{
 Check if GPU acceleration is available for spatial sampling operations.
 }
 \examples{
 \donttest{
-# Check GPU availability
-gpu_info <- check_gpu_acceleration()
+# Basic GPU availability check
+gpu_available <- check_gpu_acceleration()
+
+# Detailed GPU capability information
+gpu_info <- check_gpu_acceleration(detailed = TRUE)
 print(gpu_info)
 
-if (gpu_info$available) {
-  message("GPU acceleration is available")
-} else {
-  message("Using CPU fallback: ", gpu_info$reason)
-}
+# Test actual GPU operations
+gpu_working <- check_gpu_acceleration(test_operations = TRUE)
 }
 
 }

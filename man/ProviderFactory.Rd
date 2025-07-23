@@ -17,17 +17,11 @@ R6 class for creating provider instances using the factory pattern.
 factory <- ProviderFactory$new()
 provider <- factory$create_provider("mapbox", list(token = "your_token"))
 }
-
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
 \item{\code{registry}}{ProviderRegistry instance}
-
-\item{\code{registry}}{Provider registry instance
-Initialize Provider Factory
-
-Create a new provider factory instance.}
 }
 \if{html}{\out{</div>}}
 }

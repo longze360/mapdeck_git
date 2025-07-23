@@ -17,9 +17,6 @@ NULL
 #' operations across multiple administrative units, with support for progress
 #' monitoring and resource management.
 #'
-#' @field max_workers Maximum number of parallel workers
-#' @field progress_enabled Logical indicating if progress reporting is enabled
-#' @field chunk_size Number of units to process per chunk
 #'
 #' @examples
 #' \donttest{

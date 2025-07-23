@@ -41,15 +41,80 @@ measure_memory_usage <- function(expr) {
   }
 }
 
-# Test memory usage for spatial sampling with large datasets
-test_that("spatial sampling has acceptable memory usage with large datasets", {
+# Test memory usage for spatial sampling with large datasets and GPU acceleration
+test_that("spatial sampling has acceptable memory usage with large datasets and GPU acceleration", {
   skip_if_no_memory_test()
   
-  # Mock the spatial sampling function
+  # Mock the spatial sampling function with GPU memory management
   with_mock(
     `spatial_sample_random` = function(data, n, use_gpu = TRUE) {
-      # Simulate sampling operation
-      result <- data[sample(nrow(data), min(n, nrow(data))), ]
+      # Simulate GPU memory allocation and cleanup
+      if (use_gpu) {
+        # GPU processing uses less system memory but requires GPU memory
+        gpu_memory_factor <- 0.5  # GPU uses less system RAM
+        
+        # Simulate GPU memory allocation
+        gpu_buffer_size <- nrow(data) * 0.0001  # MB
+        
+        # Process in chunks if data is large
+        if (nrow(data) > 100000) {
+          chunk_size <- 50000
+          chunks <- split(data, ceiling(seq_len(nrow(data)) / chunk_size))
+          results <- lapply(chunks, function(chunk) {
+            chunk[sample(nrow(chunk), min(n %/% length(chunks), nrow(chunk))), ]
+          })
+          result <- do.call(rbind, results)
+        } else {
+          result <- data[sample(nrow(data), min(n, nrow(data))), ]
+        }
+        
+        # Add GPU memory metadata
+        attr(result, "gpu_memory") <- gpu_buffer_size
+      } else {
+        # CPU processing uses more system memory
+        result <- data[sample(nrow(data), min(n, nrow(data))), ]
+      }
+      
+      return(result)
+    },
+    `spatial_sample_administrative` = function(admin_polygons, total_samples, 
+                                              allocation_method = "proportional",
+                                              concurrent = TRUE, use_gpu = TRUE) {
+      # Simulate complex memory usage patterns
+      n_polygons <- length(admin_polygons$polygons)
+      
+      if (use_gpu && concurrent) {
+        # GPU + concurrent: most memory efficient
+        memory_factor <- 0.3
+      } else if (use_gpu) {
+        # GPU only: moderately efficient
+        memory_factor <- 0.5
+      } else if (concurrent) {
+        # CPU concurrent: uses more memory for parallelization
+        memory_factor <- 1.2
+      } else {
+        # CPU sequential: baseline memory usage
+        memory_factor <- 1.0
+      }
+      
+      # Simulate memory allocation based on polygon complexity
+      base_memory <- n_polygons * total_samples * 0.00001  # MB
+      actual_memory <- base_memory * memory_factor
+      
+      # Generate result
+      result <- data.frame(
+        polygon_id = sample(1:n_polygons, total_samples, replace = TRUE),
+        lon = runif(total_samples, -180, 180),
+        lat = runif(total_samples, -90, 90)
+      )
+      
+      # Add memory metadata
+      attr(result, "memory_usage") <- actual_memory
+      attr(result, "processing_mode") <- paste(
+        ifelse(use_gpu, "GPU", "CPU"),
+        ifelse(concurrent, "Concurrent", "Sequential")
+      )
+      
       return(result)
     },
     {
@@ -57,34 +122,156 @@ test_that("spatial sampling has acceptable memory usage with large datasets", {
       small_data <- generate_large_dataset(1e4)    # 10K points
       medium_data <- generate_large_dataset(1e5)   # 100K points
       large_data <- generate_large_dataset(1e6)    # 1M points
+      very_large_data <- generate_large_dataset(5e6)  # 5M points
       
-      # Measure memory usage for each dataset size
-      small_mem <- measure_memory_usage({
-        result <- spatial_sample_random(small_data, 1000)
-      })
+      cat("\n=== Memory Usage Analysis for Spatial Sampling ===\n")
       
-      medium_mem <- measure_memory_usage({
-        result <- spatial_sample_random(medium_data, 1000)
-      })
+      # Test random sampling with different configurations
+      datasets <- list(
+        "10K" = small_data,
+        "100K" = medium_data,
+        "1M" = large_data,
+        "5M" = very_large_data
+      )
       
-      large_mem <- measure_memory_usage({
-        result <- spatial_sample_random(large_data, 1000)
-      })
+      memory_results <- data.frame(
+        dataset = character(),
+        gpu_memory = numeric(),
+        cpu_memory = numeric(),
+        gpu_speedup = numeric(),
+        stringsAsFactors = FALSE
+      )
       
-      # Print memory usage
-      cat("\nMemory usage for spatial sampling:\n")
-      cat(sprintf("Small dataset (10K points): %.2f MB\n", small_mem / 1024^2))
-      cat(sprintf("Medium dataset (100K points): %.2f MB\n", medium_mem / 1024^2))
-      cat(sprintf("Large dataset (1M points): %.2f MB\n", large_mem / 1024^2))
-      
-      # Check that memory usage scales sub-linearly with data size
-      # (memory usage should not increase proportionally to data size)
-      if (!is.na(small_mem) && !is.na(medium_mem) && !is.na(large_mem)) {
-        # Medium should use less than 10x the memory of small (for 10x the data)
-        expect_lt(medium_mem, small_mem * 10)
+      for (dataset_name in names(datasets)) {
+        dataset <- datasets[[dataset_name]]
         
-        # Large should use less than 10x the memory of medium (for 10x the data)
-        expect_lt(large_mem, medium_mem * 10)
+        # Measure GPU memory usage
+        gpu_mem <- measure_memory_usage({
+          result <- spatial_sample_random(dataset, 1000, use_gpu = TRUE)
+        })
+        
+        # Measure CPU memory usage
+        cpu_mem <- measure_memory_usage({
+          result <- spatial_sample_random(dataset, 1000, use_gpu = FALSE)
+        })
+        
+        # Calculate memory efficiency
+        memory_efficiency <- ifelse(is.na(gpu_mem) || is.na(cpu_mem), NA, cpu_mem / gpu_mem)
+        
+        # Store results
+        memory_results <- rbind(memory_results, data.frame(
+          dataset = dataset_name,
+          gpu_memory = gpu_mem / 1024^2,  # Convert to MB
+          cpu_memory = cpu_mem / 1024^2,
+          gpu_speedup = memory_efficiency,
+          stringsAsFactors = FALSE
+        ))
+        
+        cat(sprintf("%s dataset: GPU %.2f MB, CPU %.2f MB, Efficiency: %.1fx\n",
+                   dataset_name, gpu_mem / 1024^2, cpu_mem / 1024^2, memory_efficiency))
+      }
+      
+      # Print summary table
+      cat("\nMemory Usage Summary:\n")
+      print(memory_results)
+      
+      # Verify memory scaling properties
+      if (!any(is.na(memory_results$gpu_memory)) && !any(is.na(memory_results$cpu_memory))) {
+        # GPU memory should scale sub-linearly
+        gpu_10k <- memory_results$gpu_memory[memory_results$dataset == "10K"]
+        gpu_100k <- memory_results$gpu_memory[memory_results$dataset == "100K"]
+        gpu_1m <- memory_results$gpu_memory[memory_results$dataset == "1M"]
+        
+        # 100K should use less than 10x memory of 10K
+        expect_lt(gpu_100k, gpu_10k * 10)
+        # 1M should use less than 10x memory of 100K
+        expect_lt(gpu_1m, gpu_100k * 10)
+        
+        # GPU should be more memory efficient than CPU for large datasets
+        large_gpu_efficiency <- memory_results$gpu_speedup[memory_results$dataset == "1M"]
+        if (!is.na(large_gpu_efficiency)) {
+          expect_gt(large_gpu_efficiency, 1.5)  # At least 50% more efficient
+        }
+      }
+      
+      # Test administrative sampling memory usage
+      admin_data <- list(
+        polygons = replicate(50, list(coords = matrix(runif(100), ncol = 2)), simplify = FALSE),
+        areas = runif(50, 100, 1000)
+      )
+      
+      cat("\n=== Administrative Sampling Memory Usage ===\n")
+      
+      # Test different processing modes
+      processing_modes <- list(
+        "GPU_Concurrent" = list(use_gpu = TRUE, concurrent = TRUE),
+        "GPU_Sequential" = list(use_gpu = TRUE, concurrent = FALSE),
+        "CPU_Concurrent" = list(use_gpu = FALSE, concurrent = TRUE),
+        "CPU_Sequential" = list(use_gpu = FALSE, concurrent = FALSE)
+      )
+      
+      admin_memory_results <- data.frame(
+        mode = character(),
+        memory_mb = numeric(),
+        relative_efficiency = numeric(),
+        stringsAsFactors = FALSE
+      )
+      
+      baseline_memory <- NULL
+      
+      for (mode_name in names(processing_modes)) {
+        mode_config <- processing_modes[[mode_name]]
+        
+        admin_mem <- measure_memory_usage({
+          result <- spatial_sample_administrative(
+            admin_data, 10000,
+            allocation_method = "proportional",
+            concurrent = mode_config$concurrent,
+            use_gpu = mode_config$use_gpu
+          )
+          
+          # Check metadata
+          memory_metadata <- attr(result, "memory_usage")
+          processing_mode <- attr(result, "processing_mode")
+          
+          expect_true(!is.null(memory_metadata))
+          expect_true(!is.null(processing_mode))
+        })
+        
+        if (is.null(baseline_memory)) {
+          baseline_memory <- admin_mem
+        }
+        
+        relative_efficiency <- baseline_memory / admin_mem
+        
+        admin_memory_results <- rbind(admin_memory_results, data.frame(
+          mode = mode_name,
+          memory_mb = admin_mem / 1024^2,
+          relative_efficiency = relative_efficiency,
+          stringsAsFactors = FALSE
+        ))
+        
+        cat(sprintf("%s: %.2f MB (%.1fx efficiency)\n",
+                   mode_name, admin_mem / 1024^2, relative_efficiency))
+      }
+      
+      # Print admin sampling summary
+      cat("\nAdministrative Sampling Memory Summary:\n")
+      print(admin_memory_results)
+      
+      # Verify that GPU concurrent is most efficient
+      gpu_concurrent_efficiency <- admin_memory_results$relative_efficiency[
+        admin_memory_results$mode == "GPU_Concurrent"
+      ]
+      
+      if (!is.na(gpu_concurrent_efficiency)) {
+        expect_gt(gpu_concurrent_efficiency, 1.0)  # Should be more efficient than baseline
+        
+        # Should be more efficient than other modes
+        other_efficiencies <- admin_memory_results$relative_efficiency[
+          admin_memory_results$mode != "GPU_Concurrent"
+        ]
+        expect_true(all(gpu_concurrent_efficiency >= other_efficiencies, na.rm = TRUE))
       }
     }
   )

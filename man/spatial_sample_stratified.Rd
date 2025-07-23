@@ -12,22 +12,14 @@ spatial_sample_stratified(
   seed = NULL,
   engine = NULL
 )
-
-spatial_sample_stratified(
-  data,
-  strata_column,
-  n_per_stratum,
-  bounds = NULL,
-  seed = NULL,
-  engine = NULL
-)
 }
 \arguments{
 \item{data}{Spatial data (sf object or data.frame with coordinates)}
 
-\item{strata_column}{Character name of column for stratification}
+\item{strata_column}{Character string naming the column to use for stratification}
 
-\item{n_per_stratum}{Integer samples per stratum or named vector}
+\item{n_per_stratum}{Integer number of samples per stratum, or named vector/list
+specifying samples for each stratum individually}
 
 \item{bounds}{Optional bounding box as c(xmin, ymin, xmax, ymax)}
 
@@ -36,54 +28,66 @@ spatial_sample_stratified(
 \item{engine}{Optional SamplingEngine instance (created if NULL)}
 }
 \value{
-Stratified sampled spatial data
-
-Stratified sampled spatial data
+Stratified sampled spatial data maintaining original structure
 }
 \description{
+This function performs stratified sampling where samples are drawn from
+different strata (groups) within the spatial data. It ensures representation
+from each stratum according to specified sample sizes, with automatic
+GPU acceleration for large datasets.
+}
+\details{
 Perform stratified spatial sampling on geospatial data with automatic
 GPU acceleration when available.
+
+
+The function supports multiple ways to specify sample sizes:
+\itemize{
+  \item Single integer: Same number of samples from each stratum
+  \item Named vector: Specific sample sizes for each stratum by name
+  \item Named list: Alternative format for specifying stratum-specific sizes
+}
+
+GPU acceleration is automatically used for datasets larger than the
+engine's fallback threshold (default: 10,000 points) when available.
+The function gracefully falls back to CPU processing if GPU operations fail.
 }
 \examples{
 \donttest{
-# Stratified sampling
-library(sf)
-data(melbourne, package = "mapdeck")
-melbourne$category <- sample(c("A", "B", "C"), nrow(melbourne), replace = TRUE)
-stratified_samples <- spatial_sample_stratified(melbourne, 
-                                                 strata_column = "category",
-                                                 n_per_stratum = 10)
-
-# Stratified sampling with different samples per stratum
-n_per_stratum <- c("A" = 15, "B" = 10, "C" = 5)
-custom_stratified <- spatial_sample_stratified(melbourne, 
-                                                strata_column = "category",
-                                                n_per_stratum = n_per_stratum)
-}
-
-\donttest{
 # Stratified sampling with equal samples per stratum
 library(sf)
-data(road_safety, package = "mapdeck")
-stratified_samples <- spatial_sample_stratified(road_safety, 
-                                                 strata_column = "ACCIDENT_TYPE",
-                                                 n_per_stratum = 50)
+data(melbourne, package = "mapdeck")
 
-# Stratified sampling with different samples per stratum
-sample_sizes <- list("Collision with vehicle" = 100, 
-                     "Collision with object" = 50,
-                     "Other" = 25)
-custom_stratified <- spatial_sample_stratified(road_safety,
-                                                strata_column = "ACCIDENT_TYPE",
-                                                n_per_stratum = sample_sizes)
+# Add a stratification column
+melbourne$category <- sample(c("A", "B", "C"), nrow(melbourne), replace = TRUE)
 
-# Stratified sampling with bounds and seed
+# Equal samples per stratum
+stratified_equal <- spatial_sample_stratified(
+  melbourne, 
+  strata_column = "category", 
+  n_per_stratum = 50
+)
+
+# Different samples per stratum
+stratified_custom <- spatial_sample_stratified(
+  melbourne,
+  strata_column = "category",
+  n_per_stratum = c("A" = 100, "B" = 50, "C" = 25)
+)
+
+# With bounds and reproducible seed
 bounds <- c(144.9, -37.9, 145.0, -37.8)
-reproducible_stratified <- spatial_sample_stratified(road_safety,
-                                                      strata_column = "ACCIDENT_TYPE",
-                                                      n_per_stratum = 30,
-                                                      bounds = bounds,
-                                                      seed = 456)
+stratified_bounded <- spatial_sample_stratified(
+  melbourne,
+  strata_column = "category",
+  n_per_stratum = 30,
+  bounds = bounds,
+  seed = 123
+)
 }
 
+}
+\seealso{
+\code{\link{spatial_sample_random}}, \code{\link{spatial_sample_grid}}, 
+  \code{\link{spatial_sample_administrative}}
 }

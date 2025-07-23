@@ -16,9 +16,6 @@ NULL
 #' style names to provider-specific style identifiers, enabling consistent
 #' styling across different map providers.
 #'
-#' @field style_mappings List of style mappings for each provider
-#' @field default_styles List of default styles for each provider
-#' @field style_categories List of style categories and their members
 #'
 #' @examples
 #' \donttest{
@@ -286,8 +283,6 @@ StyleResolver <- R6::R6Class("StyleResolver",
 #' that styles are compatible with specific providers and can be properly
 #' resolved and applied.
 #'
-#' @field supported_features List of supported features by provider
-#' @field validation_rules List of validation rules
 #'
 #' @examples
 #' \donttest{
@@ -532,8 +527,6 @@ StyleValidator <- R6::R6Class("StyleValidator",
 #' consistent visual themes across different map providers, ensuring a
 #' unified look and feel regardless of the underlying provider.
 #'
-#' @field themes List of available themes
-#' @field current_theme Current active theme
 #'
 #' @examples
 #' \donttest{
@@ -888,10 +881,20 @@ ThemeManager <- R6::R6Class("ThemeManager",
 #'
 #' @export
 get_style_resolver <- function() {
-  if (is.null(.style_resolver)) {
-    .style_resolver <<- StyleResolver$new()
-  }
-  return(.style_resolver)
+  tryCatch({
+    if (is.null(.style_resolver)) {
+      .style_resolver <<- StyleResolver$new()
+    }
+    return(.style_resolver)
+  }, error = function(e) {
+    # Handle locked binding error during development
+    if (grepl("locked binding", e$message)) {
+      # Create a new instance without assigning to global variable
+      return(StyleResolver$new())
+    } else {
+      stop(e)
+    }
+  })
 }
 
 #' Get Style Validator
@@ -909,10 +912,20 @@ get_style_resolver <- function() {
 #'
 #' @export
 get_style_validator <- function() {
-  if (is.null(.style_validator)) {
-    .style_validator <<- StyleValidator$new()
-  }
-  return(.style_validator)
+  tryCatch({
+    if (is.null(.style_validator)) {
+      .style_validator <<- StyleValidator$new()
+    }
+    return(.style_validator)
+  }, error = function(e) {
+    # Handle locked binding error during development
+    if (grepl("locked binding", e$message)) {
+      # Create a new instance without assigning to global variable
+      return(StyleValidator$new())
+    } else {
+      stop(e)
+    }
+  })
 }
 
 #' Get Theme Manager
@@ -930,8 +943,314 @@ get_style_validator <- function() {
 #'
 #' @export
 get_theme_manager <- function() {
-  if (is.null(.theme_manager)) {
-    .theme_manager <<- ThemeManager$new()
+  tryCatch({
+    if (is.null(.theme_manager)) {
+      .theme_manager <<- ThemeManager$new()
+    }
+    return(.theme_manager)
+  }, error = function(e) {
+    # Handle locked binding error during development
+    if (grepl("locked binding", e$message)) {
+      # Create a new instance without assigning to global variable
+      return(ThemeManager$new())
+    } else {
+      stop(e)
+    }
+  })
+}
+
+#' Get Available Styles for Provider
+#'
+#' Get a list of available map styles for a specific provider or all providers.
+#'
+#' @description
+#' This function returns the available map styles that can be used with a specific
+#' provider or across all providers. It provides both generic style names that
+#' work across providers and provider-specific style identifiers.
+#'
+#' @param provider Character string identifying the provider (optional). If NULL,
+#'   returns styles available across all providers.
+#' @param category Character string to filter styles by category (optional).
+#'   Categories include: "basic", "monochrome", "satellite", "terrain", "artistic", 
+#'   "navigation", "themed".
+#' @param include_provider_specific Logical indicating if provider-specific style
+#'   identifiers should be included (default: FALSE).
+#'
+#' @return Character vector of available style names, or named list if 
+#'   include_provider_specific is TRUE.
+#'
+#' @details
+#' The function returns generic style names that are mapped to provider-specific
+#' styles internally. Common generic styles include:
+#' \itemize{
+#'   \item \strong{Basic styles}: "streets", "outdoors"
+#'   \item \strong{Monochrome}: "light", "dark"
+#'   \item \strong{Satellite}: "satellite", "satellite_streets", "hybrid"
+#'   \item \strong{Terrain}: "terrain"
+#'   \item \strong{Artistic}: "watercolor", "toner"
+#'   \item \strong{Navigation}: "navigation_day", "navigation_night"
+#'   \item \strong{Themed}: "blue", "wine", "midnight"
+#' }
+#'
+#' Provider-specific styles use different formats:
+#' \itemize{
+#'   \item \strong{Mapbox}: URLs like "mapbox://styles/mapbox/streets-v11"
+#'   \item \strong{Leaflet}: Tile provider names like "OpenStreetMap", "CartoDB.Positron"
+#'   \item \strong{OpenLayers}: Source names like "OSM", "CartoDB.Positron"
+#'   \item \strong{Gaode}: URLs like "amap://styles/normal"
+#'   \item \strong{Baidu}: Style names like "normal", "satellite"
+#' }
+#'
+#' @examples
+#' \donttest{
+#' # Get all available generic styles
+#' all_styles <- get_available_styles()
+#' print(all_styles)
+#' 
+#' # Get styles for specific provider
+#' mapbox_styles <- get_available_styles("mapbox")
+#' leaflet_styles <- get_available_styles("leaflet")
+#' 
+#' # Get styles by category
+#' satellite_styles <- get_available_styles(category = "satellite")
+#' monochrome_styles <- get_available_styles(category = "monochrome")
+#' 
+#' # Get provider-specific style identifiers
+#' detailed_styles <- get_available_styles("mapbox", include_provider_specific = TRUE)
+#' print(detailed_styles)
+#' 
+#' # Check what styles are available for Chinese providers
+#' gaode_styles <- get_available_styles("gaode")
+#' baidu_styles <- get_available_styles("baidu")
+#' }
+#'
+#' @seealso \code{\link{mapdeck_style}}, \code{\link{validate_map_style}}, 
+#'   \code{\link{apply_map_theme}}
+#'
+#' @export
+get_available_styles <- function(provider = NULL, category = NULL, include_provider_specific = FALSE) {
+  
+  if (!is.null(provider) && (!is.character(provider) || length(provider) != 1)) {
+    stop("Provider must be a single character string or NULL")
   }
-  return(.theme_manager)
+  
+  if (!is.null(category) && (!is.character(category) || length(category) != 1)) {
+    stop("Category must be a single character string or NULL")
+  }
+  
+  if (!is.logical(include_provider_specific) || length(include_provider_specific) != 1) {
+    stop("include_provider_specific must be a single logical value")
+  }
+  
+  resolver <- get_style_resolver()
+  
+  if (is.null(provider)) {
+    # Return generic styles available across all providers
+    styles <- resolver$get_available_styles(category)
+    
+    if (include_provider_specific) {
+      # Return detailed mapping for all providers
+      result <- list()
+      for (p in names(resolver$style_mappings)) {
+        result[[p]] <- resolver$style_mappings[[p]]
+      }
+      return(result)
+    }
+    
+    return(styles)
+  }
+  
+  # Validate provider
+  if (!provider %in% names(resolver$style_mappings)) {
+    stop(sprintf("Unknown provider '%s'. Available providers: %s",
+                provider, paste(names(resolver$style_mappings), collapse = ", ")))
+  }
+  
+  if (include_provider_specific) {
+    # Return provider-specific style identifiers
+    provider_styles <- resolver$style_mappings[[provider]]
+    
+    if (!is.null(category)) {
+      # Filter by category
+      category_styles <- resolver$get_available_styles(category)
+      provider_styles <- provider_styles[names(provider_styles) %in% category_styles]
+    }
+    
+    return(provider_styles)
+  }
+  
+  # Return generic style names available for this provider
+  provider_styles <- names(resolver$style_mappings[[provider]])
+  
+  if (!is.null(category)) {
+    category_styles <- resolver$get_available_styles(category)
+    provider_styles <- provider_styles[provider_styles %in% category_styles]
+  }
+  
+  return(provider_styles)
+}
+
+#' Apply Map Theme
+#'
+#' Apply a consistent theme across different map providers.
+#'
+#' @description
+#' This function applies a predefined theme to a map, ensuring consistent
+#' visual appearance across different providers. Themes include coordinated
+#' color schemes, styles, and visual elements.
+#'
+#' @param map A mapdeck map object
+#' @param theme_name Character string identifying the theme to apply.
+#'   Available themes: "light", "dark", "satellite".
+#' @param provider Character string identifying the provider (optional, 
+#'   auto-detected from map if not specified).
+#'
+#' @return Updated mapdeck map object with theme applied
+#'
+#' @details
+#' Available themes:
+#' \itemize{
+#'   \item \strong{light}: Bright theme with high contrast, suitable for detailed data visualization
+#'   \item \strong{dark}: Dark theme with muted colors, reduces eye strain and highlights data
+#'   \item \strong{satellite}: Earth-toned theme optimized for satellite imagery backgrounds
+#' }
+#'
+#' Each theme includes:
+#' \itemize{
+#'   \item Provider-appropriate base map style
+#'   \item Coordinated color palette for data layers
+#'   \item Consistent typography and UI elements
+#'   \item Optimized contrast and readability
+#' }
+#'
+#' @examples
+#' \donttest{
+#' # Apply dark theme to map
+#' map <- mapdeck(provider = "mapbox", token = "your_token")
+#' dark_map <- apply_map_theme(map, "dark")
+#' 
+#' # Apply satellite theme
+#' satellite_map <- apply_map_theme(map, "satellite")
+#' 
+#' # Apply theme to different providers
+#' leaflet_map <- mapdeck(provider = "leaflet")
+#' themed_leaflet <- apply_map_theme(leaflet_map, "light")
+#' }
+#'
+#' @export
+apply_map_theme <- function(map, theme_name, provider = NULL) {
+  
+  if (!is.character(theme_name) || length(theme_name) != 1) {
+    stop("theme_name must be a single character string")
+  }
+  
+  # Auto-detect provider if not specified
+  if (is.null(provider)) {
+    provider_obj <- attr(map, "mapdeck_provider")
+    if (!is.null(provider_obj)) {
+      provider <- provider_obj$provider_name
+    } else {
+      provider <- "mapbox"  # Default fallback
+    }
+  }
+  
+  # Apply theme using theme manager
+  theme_manager <- get_theme_manager()
+  theme_config <- theme_manager$apply_theme(theme_name, provider)
+  
+  # Update map style
+  if (!is.null(theme_config$style)) {
+    map <- update_style(map, theme_config$style)
+  }
+  
+  # Store theme configuration for layer styling
+  attr(map, "mapdeck_theme") <- theme_config
+  
+  return(map)
+}
+
+#' Validate Map Style
+#'
+#' Validate that a map style is compatible with a specific provider.
+#'
+#' @description
+#' This function validates whether a given style specification is compatible
+#' with a specific map provider, checking format, requirements, and feature support.
+#'
+#' @param style Character string or list containing style specification
+#' @param provider Character string identifying the provider
+#' @param detailed Logical indicating if detailed validation results should be returned
+#'
+#' @return Logical indicating validity, or list with detailed results if detailed=TRUE
+#'
+#' @details
+#' The validation checks:
+#' \itemize{
+#'   \item Style format compatibility with provider
+#'   \item Required fields and structure
+#'   \item Feature support and limitations
+#'   \item URL patterns and accessibility
+#' }
+#'
+#' Provider-specific validation:
+#' \itemize{
+#'   \item \strong{Mapbox}: Validates Mapbox style URLs and custom style objects
+#'   \item \strong{Leaflet}: Validates tile provider names and URLs
+#'   \item \strong{OpenLayers}: Validates source configurations
+#'   \item \strong{Gaode}: Validates Gaode style URLs and names
+#'   \item \strong{Baidu}: Validates Baidu style names
+#' }
+#'
+#' @examples
+#' \donttest{
+#' # Validate generic style names
+#' is_valid <- validate_map_style("streets", "mapbox")
+#' print(is_valid)
+#' 
+#' # Validate provider-specific styles
+#' mapbox_valid <- validate_map_style("mapbox://styles/mapbox/dark-v10", "mapbox")
+#' leaflet_valid <- validate_map_style("OpenStreetMap", "leaflet")
+#' 
+#' # Get detailed validation results
+#' validation <- validate_map_style("satellite", "gaode", detailed = TRUE)
+#' print(validation)
+#' 
+#' # Validate custom style object
+#' custom_style <- list(
+#'   version = 8,
+#'   sources = list(),
+#'   layers = list()
+#' )
+#' custom_valid <- validate_map_style(custom_style, "mapbox")
+#' }
+#'
+#' @export
+validate_map_style <- function(style, provider, detailed = FALSE) {
+  
+  if (!is.character(provider) || length(provider) != 1) {
+    stop("Provider must be a single character string")
+  }
+  
+  if (!is.logical(detailed) || length(detailed) != 1) {
+    stop("detailed must be a single logical value")
+  }
+  
+  validator <- get_style_validator()
+  
+  if (detailed) {
+    # Return detailed validation results
+    is_valid <- validator$validate_style(style, provider)
+    compatibility <- validator$get_style_compatibility(as.character(style)[1])
+    
+    return(list(
+      valid = is_valid,
+      provider = provider,
+      style = style,
+      compatibility = compatibility,
+      supported_features = validator$supported_features[[provider]],
+      validation_rules = validator$validation_rules[[provider]]
+    ))
+  }
+  
+  return(validator$validate_style(style, provider))
 }

@@ -22,12 +22,6 @@ style <- resolver$resolve_style("streets", "mapbox")
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{style_mappings}}{List of style mappings for each provider}
-
-\item{\code{default_styles}}{List of default styles for each provider}
-
-\item{\code{style_categories}}{List of style categories and their members}
-
 \item{\code{style_mappings}}{Style mappings for providers}
 
 \item{\code{default_styles}}{Default styles for providers}

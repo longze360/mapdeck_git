@@ -15,11 +15,6 @@ NULL
 #' provider interface with deck.gl overlay support. It supports various
 #' sources and layer configurations specific to OpenLayers.
 #'
-#' @field openlayers_config OpenLayers-specific configuration
-#' @field source_config Current source configuration
-#' @field current_style Current map style/source
-#' @field layers List of active deck.gl layers
-#' @field map_instance Reference to the map instance
 #'
 #' @examples
 #' \donttest{

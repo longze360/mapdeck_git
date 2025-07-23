@@ -25,16 +25,6 @@ provider$initialize_provider(list(source = "OSM"))
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{openlayers_config}}{OpenLayers-specific configuration}
-
-\item{\code{source_config}}{Current source configuration}
-
-\item{\code{current_style}}{Current map style/source}
-
-\item{\code{layers}}{List of active deck.gl layers}
-
-\item{\code{map_instance}}{Reference to the map instance}
-
 \item{\code{openlayers_config}}{OpenLayers configuration}
 
 \item{\code{source_config}}{Source configuration}

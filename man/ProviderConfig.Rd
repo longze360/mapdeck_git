@@ -27,7 +27,6 @@ config <- ProviderConfig$new(
   default_style = "mapbox://styles/mapbox/streets-v11"
 )
 }
-
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -47,25 +46,6 @@ config <- ProviderConfig$new(
 \item{\code{api_endpoints}}{List of API endpoints for the provider}
 
 \item{\code{rate_limits}}{List of rate limiting information}
-
-\item{\code{name}}{Provider name}
-
-\item{\code{type}}{Provider type}
-
-\item{\code{authentication_required}}{Authentication requirement flag}
-
-\item{\code{supported_features}}{List of supported features}
-
-\item{\code{coordinate_system}}{Default coordinate system}
-
-\item{\code{default_style}}{Default map style}
-
-\item{\code{api_endpoints}}{API endpoints}
-
-\item{\code{rate_limits}}{Rate limiting information
-Initialize Provider Configuration
-
-Create a new provider configuration instance.}
 }
 \if{html}{\out{</div>}}
 }
