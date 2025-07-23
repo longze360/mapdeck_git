@@ -79,6 +79,7 @@ mapdeck <- function(
   
   # For backward compatibility, if token is NULL, try to get it for the provider
   if (is.null(token)) {
+    # Use get_access_token which doesn't depend on token-store.R
     token <- get_access_token(provider)
   }
   
