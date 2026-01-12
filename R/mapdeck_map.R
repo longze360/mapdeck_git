@@ -10,7 +10,8 @@
 #' @param width the width of the map
 #' @param height the height of the map
 #' @param padding the padding of the map
-#' @param style the style of the map (see \link{mapdeck_style})
+#' @param style the style of the map. For Mapbox maps, use \code{mapdeck_style()}.
+#' For Leaflet maps, use \code{leaflet_style()} or a custom tile URL.
 #' @param pitch the pitch angle of the map
 #' @param zoom zoom level of the map
 #' @param bearing bearing of the map between 0 and 360
@@ -36,6 +37,11 @@
 #' }
 #'
 #' @param repeat_view Logical indicating if the layers should repeat at low zoom levels
+#' @param map_type The map type to use. Either "mapbox", "leaflet", or "deck.gl".
+#' - "mapbox": Use Mapbox GL JS (requires access token)
+#' - "leaflet": Use Leaflet with deck.gl overlay (no token required)
+#' - "deck.gl": Use deck.gl only (no base map)
+#' @param attribution Attribution text for the map tiles. Used by Leaflet maps.
 #'
 #' @section Access Tokens:
 #'
@@ -47,41 +53,61 @@
 #'
 #' If multiple tokens are found, the first one is used
 #'
+#' @section Leaflet Maps:
+#'
+#' When using \code{map_type = "leaflet"}, no Mapbox token is required.
+#' The map will use Leaflet for the base map and deck.gl for the overlay layers.
+#' Some features like pitch and bearing are not available in Leaflet mode.
+#'
 #' @export
 mapdeck <- function(
-	data = NULL,
-	token = get_access_token( api = 'mapbox' ),
-	width = NULL,
-	height = NULL,
-	padding = 0,
-	style = 'mapbox://styles/mapbox/streets-v9',
-	pitch = 0,
-	zoom = 0,
-	bearing = 0,
-	libraries = NULL,
-	max_zoom = 20,
-	min_zoom = 0,
-	max_pitch = 60,
-	min_pitch = 0,
-	location = c(0, 0),
-	show_view_state = FALSE,
-	repeat_view = FALSE
-	) {
+  data = NULL,
+  token = get_access_token(api = 'mapbox'),
+  width = NULL,
+  height = NULL,
+  padding = 0,
+  style = 'mapbox://styles/mapbox/streets-v9',
+  pitch = 0,
+  zoom = 0,
+  bearing = 0,
+  libraries = NULL,
+  max_zoom = 20,
+  min_zoom = 0,
+  max_pitch = 60,
+  min_pitch = 0,
+  location = c(0, 0),
+  show_view_state = FALSE,
+  repeat_view = FALSE,
+  map_type = c("mapbox", "leaflet", "deck.gl"),
+  attribution = NULL
+) {
+  # Validate map_type
+  map_type <- match.arg(map_type)
+
+  # For leaflet, override style if using default mapbox style
+  if (map_type == "leaflet" && style == 'mapbox://styles/mapbox/streets-v9') {
+    style <- 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    if (is.null(attribution)) {
+      attribution <- '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }
+  }
 
   # forward options using x
   x = list(
-    access_token = force( token )
-    , style = force( style )
-    , pitch = force( pitch )
-    , zoom = force( zoom )
-    , location = force( as.numeric( location ) )
-    , bearing = force( bearing )
-    , max_zoom = force( max_zoom )
-    , min_zoom = force( min_zoom )
-    , max_pitch = force( max_pitch )
-    , min_pitch = force( min_pitch )
-    , show_view_state = force( show_view_state )
-    , repeat_view = force( repeat_view )
+    access_token = force(token),
+    style = force(style),
+    pitch = force(pitch),
+    zoom = force(zoom),
+    location = force(as.numeric(location)),
+    bearing = force(bearing),
+    max_zoom = force(max_zoom),
+    min_zoom = force(min_zoom),
+    max_pitch = force(max_pitch),
+    min_pitch = force(min_pitch),
+    show_view_state = force(show_view_state),
+    repeat_view = force(repeat_view),
+    map_type = force(map_type),
+    attribution = force(attribution)
   )
 
   # deps <- list(
@@ -97,31 +123,40 @@ mapdeck <- function(
   mapdeckmap <- htmlwidgets::createWidget(
     name = 'mapdeck',
     x = structure(
-    	x,
-    	mapdeck_data = data
+      x,
+      mapdeck_data = data
     ),
     width = width,
     height = height,
     package = 'mapdeck',
     #dependencies = deps,
     sizingPolicy = htmlwidgets::sizingPolicy(
-    	defaultWidth = '100%',
-    	defaultHeight = 800,
-    	padding = padding,
-    	browser.fill = FALSE
+      defaultWidth = '100%',
+      defaultHeight = 800,
+      padding = padding,
+      browser.fill = FALSE
     )
   )
 
-  mapdeckmap <- add_dependencies( mapdeckmap )
+  mapdeckmap <- add_dependencies(mapdeckmap)
 
-  mapdeckmap$dependencies <- c(
-  	if ('h3' %in% libraries) mapdeckH3JSDependency() else NULL
-  	, mapdeckmap$dependencies
-  	, mapboxgl()
-  	, mapdeck_js()
-  	, htmlwidgets_js()
-  	#, mapdeckViewStateDependency()
-  	)
+  # Add dependencies based on map_type
+  if (map_type == "leaflet") {
+    mapdeckmap$dependencies <- c(
+      if ('h3' %in% libraries) mapdeckH3JSDependency() else NULL,
+      mapdeckmap$dependencies,
+      leafletDependency(),
+      mapdeck_js()
+    )
+  } else {
+    mapdeckmap$dependencies <- c(
+      if ('h3' %in% libraries) mapdeckH3JSDependency() else NULL,
+      mapdeckmap$dependencies,
+      mapboxgl(),
+      mapdeck_js(),
+      htmlwidgets_js()
+    )
+  }
 
   return(mapdeckmap)
 }
@@ -133,10 +168,12 @@ mapdeck <- function(
 #' @param style the style of the map (see \link{mapdeck_style})
 #'
 #' @export
-update_style <- function( map, style ) {
-	invoke_method(
-		map, "md_update_style", style
-	)
+update_style <- function(map, style) {
+  invoke_method(
+    map,
+    "md_update_style",
+    style
+  )
 }
 
 
@@ -157,18 +194,25 @@ update_style <- function( map, style ) {
 #' @name mapdeck-shiny
 #'
 #' @export
-mapdeckOutput <- function(outputId, width = '100%', height = '400px'){
-	htmlwidgets::shinyWidgetOutput(outputId, 'mapdeck', width, height, package = 'mapdeck')
+mapdeckOutput <- function(outputId, width = '100%', height = '400px') {
+  htmlwidgets::shinyWidgetOutput(
+    outputId,
+    'mapdeck',
+    width,
+    height,
+    package = 'mapdeck'
+  )
 }
 
 
 #' @rdname mapdeck-shiny
 #' @export
 renderMapdeck <- function(expr, env = parent.frame(), quoted = FALSE) {
-  if (!quoted) { expr <- substitute(expr) } # force quoted
+  if (!quoted) {
+    expr <- substitute(expr)
+  } # force quoted
   htmlwidgets::shinyRenderWidget(expr, mapdeckOutput, env, quoted = TRUE)
 }
-
 
 
 #' Mapdeck update
@@ -187,32 +231,33 @@ renderMapdeck <- function(expr, env = parent.frame(), quoted = FALSE) {
 #' @param map_type either mapdeck_update or google_map_update
 #' @export
 mapdeck_update <- function(
-	data = NULL,
-	map_id,
-	session = shiny::getDefaultReactiveDomain(),
-	deferUntilFlush = TRUE,
-	map_type = c("mapdeck_update", "google_map_update")
-	) {
+  data = NULL,
+  map_id,
+  session = shiny::getDefaultReactiveDomain(),
+  deferUntilFlush = TRUE,
+  map_type = c("mapdeck_update", "google_map_update")
+) {
+  map_type <- match.arg(map_type)
 
-	map_type <- match.arg( map_type )
+  if (is.null(session)) {
+    stop(
+      "mapdeck - mapdeck_update must be called from the server function of a Shiny app"
+    )
+  }
 
-	if (is.null(session)) {
-		stop("mapdeck - mapdeck_update must be called from the server function of a Shiny app")
-	}
-
-	structure(
-		list(
-			session = session,
-			id = map_id,
-			x = structure(
-				list(),
-				mapdeck_data = data
-			),
-			deferUntilFlush = deferUntilFlush,
-			dependencies = NULL
-		),
-		class = c(map_type)
-	)
+  structure(
+    list(
+      session = session,
+      id = map_id,
+      x = structure(
+        list(),
+        mapdeck_data = data
+      ),
+      deferUntilFlush = deferUntilFlush,
+      dependencies = NULL
+    ),
+    class = c(map_type)
+  )
 }
 
 
@@ -226,20 +271,26 @@ mapdeck_update <- function(
 #' @param transition type of transition
 #' @export
 mapdeck_view <- function(
-	map,
-	location = NULL,
-	zoom = NULL,
-	pitch = NULL,
-	bearing = NULL,
-	duration = NULL,
-	transition = c("linear", "fly")
-	) {
-
-	transition <- match.arg(transition)
-	invoke_method(
-		map, 'md_change_location', map_type( map ) , as.numeric( location ), zoom, pitch,
-		bearing, duration, transition
-		)
+  map,
+  location = NULL,
+  zoom = NULL,
+  pitch = NULL,
+  bearing = NULL,
+  duration = NULL,
+  transition = c("linear", "fly")
+) {
+  transition <- match.arg(transition)
+  invoke_method(
+    map,
+    'md_change_location',
+    map_type(map),
+    as.numeric(location),
+    zoom,
+    pitch,
+    bearing,
+    duration,
+    transition
+  )
 }
 
 # Get Map Data
@@ -248,19 +299,22 @@ mapdeck_view <- function(
 #
 # @param map a mapdeck map object
 #
-get_map_data <- function( map ) {
-	attr( map$x, "mapdeck_data", exact = TRUE )
+get_map_data <- function(map) {
+  attr(map$x, "mapdeck_data", exact = TRUE)
 }
 
 # map_type
 #
 # determines the source/type of map
-map_type <- function( map ) {
+map_type <- function(map) {
+  map_type <- attr(map, "class")
+  if (any(c("mapdeck", "mapdeck_update") %in% map_type)) {
+    return("mapdeck")
+  }
 
-	map_type <- attr( map, "class")
-	if( any( c("mapdeck", "mapdeck_update") %in% map_type ) ) return( "mapdeck" )
+  if (any(c("google_map", "google_map_update") %in% map_type)) {
+    return("google_map")
+  }
 
-	if( any( c("google_map", "google_map_update") %in% map_type ) ) return( "google_map" )
-
-	return(NULL)
+  return(NULL)
 }

@@ -163,12 +163,14 @@ function md_layer_clear( map_id, map_type, layer_id, layer, update_view, clear_l
     md_clear_layer( map_id, layer+'-'+layer_id );
   } else if ( map_type == "google_map" ) {
     md_clear_overlay( map_id, layer+'-'+layer_id );
+  } else if ( map_type == "leaflet" ) {
+    md_clear_leaflet_layer( map_id, layer+'-'+layer_id );
   }
 
   md_remove_from_bounds( map_id, layer_id );
 
   if( update_view ) {
-	  md_update_location( map_id, map_type );
+    md_update_location( map_id, map_type );
   }
 
   if( clear_legend ) {
@@ -244,9 +246,66 @@ function md_clear_overlay( map_id, layer_id ) {
 	}
 
 	window[ map_id + 'GoogleMapsOverlay'].setProps({ layers: [ ...window[map_id + 'layers'] ] });
-  const overlay = window[ map_id + 'GoogleMapsOverlay'];
-  overlay.setMap( window[map_id + 'map'] );
+   const overlay = window[ map_id + 'GoogleMapsOverlay'];
+   overlay.setMap( window[map_id + 'map'] );
 
+}
+
+// Leaflet-specific functions
+function md_update_leaflet_layer( map_id, layer_id, layer ) {
+
+  // Check if this is a Leaflet map
+  if ( window[map_id + 'map_type'] !== 'leaflet' ) {
+    return;
+  }
+
+  var elem = -1;
+  if ( window[map_id + 'layers'] ) {
+    elem = md_findObjectElementByKey( window[map_id + 'layers'], 'id', layer_id );
+  }
+
+  if ( elem != -1 ) {
+  	window[ map_id + 'layers'][elem] = layer;
+  } else {
+  	if ( window[map_id + 'layers'] == null ) {
+      window[map_id + 'layers'] = [];
+    }
+    window[map_id + 'layers'].push( layer );
+  }
+
+  // Update deck.gl overlay
+  var deckOverlay = window[map_id + 'deckOverlay'];
+  if ( deckOverlay && deckOverlay.setProps ) {
+    deckOverlay.setProps({
+      layers: [...window[map_id + 'layers'] ]
+    });
+  }
+}
+
+function md_clear_leaflet_layer( map_id, layer_id ) {
+
+  // Check if this is a Leaflet map
+  if ( window[map_id + 'map_type'] !== 'leaflet' ) {
+    return;
+  }
+
+  if ( window[map_id + 'layers'] == null ) {
+    return;
+  }
+
+  var elem = md_findObjectElementByKey( window[map_id + 'layers'], 'id', layer_id );
+
+  if ( elem != -1 ) {
+    window[ map_id + 'layers'].splice( elem, 1 );
+
+    // Update deck.gl overlay
+    var deckOverlay = window[map_id + 'deckOverlay'];
+    if ( deckOverlay && deckOverlay.setProps ) {
+      deckOverlay.setProps({
+        layers: [...window[map_id + 'layers'] ]
+      });
+    }
+  }
 }
 
 function md_layer_click( map_id, layer, info ) {

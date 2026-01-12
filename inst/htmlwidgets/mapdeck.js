@@ -80,10 +80,10 @@ HTMLWidgets.widget({
 					repeat: x.repeat_view
 				})
 
-       if( x.access_token === null ) {
-       	 deckgl = new deck.DeckGL({
-       	 	  views: [mapView],
-       	 	  map: false,
+       if( x.access_token === null && x.map_type !== 'leaflet' ) {
+        	 deckgl = new deck.DeckGL({
+        	 	  views: [mapView],
+        	 	  map: false,
 			      container: el.id,
 			      initialViewState: initialViewState,
 			      layers: [],
@@ -91,10 +91,54 @@ HTMLWidgets.widget({
 			      //onLayerHover: setTooltip
 			   });
 			   window[el.id + 'map'] = deckgl;
-       } else {
-        deckgl = new deck.DeckGL({
+        } else if (x.map_type === 'leaflet') {
+        	// Create Leaflet map
+        	var leafletMap = L.map(el.id, {
+        		center: [x.location[1], x.location[0]],
+        		zoom: x.zoom,
+        		zoomControl: false
+        	});
+
+        	// Add tile layer
+        	var tileUrl = x.style || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        	var attribution = x.attribution || '© OpenStreetMap contributors';
+
+        	L.tileLayer(tileUrl, {
+        		maxZoom: x.max_zoom || 19,
+        		attribution: attribution
+        	}).addTo(leafletMap);
+
+        	// Create deck.gl overlay
+        	var deckOverlay = new DeckOverlay({
+        		views: [
+        			new deck.MapView({ repeat: true })
+        		],
+        		initialViewState: {
+        			longitude: x.location[0],
+        			latitude: x.location[1],
+        			zoom: x.zoom - 1,
+        			pitch: 0,
+        			bearing: 0
+        		},
+        		layers: [],
+        		controller: false,
+        		getTooltip: function(info) {
+        			if (info.object && info.object.properties && info.object.properties.tooltip) {
+        				return info.object.properties.tooltip;
+        			}
+        			return null;
+        		}
+        	});
+
+        	leafletMap.addLayer(deckOverlay);
+
+        	window[el.id + 'map'] = leafletMap;
+        	window[el.id + 'deckOverlay'] = deckOverlay;
+        	window[el.id + 'map_type'] = 'leaflet';
+        } else {
+         deckgl = new deck.DeckGL({
         	  views: [mapView],
-          	mapboxApiAccessToken: x.access_token,
+           	mapboxApiAccessToken: x.access_token,
 			      container: el.id,
 			      mapStyle: x.style,
 			      initialViewState: initialViewState,
